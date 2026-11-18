@@ -92,8 +92,16 @@ export function createEngine() {
     }
   }, '16n');
 
+  let tap: MediaStreamAudioDestinationNode | undefined;
+
   return {
     get bpm() { return transport.bpm.value; },
+
+    /** The final mix as a MediaStream, for the clip recorder. */
+    audioStream() {
+      if (!tap) { tap = Tone.getContext().createMediaStreamDestination(); limiter.connect(tap); }
+      return tap.stream;
+    },
     get unlocked() { return LAYERS.filter((l) => unlocked.has(l)); },
 
     /** Unlock audio; call inside a click handler (autoplay rules). */

@@ -9,6 +9,7 @@ import { startTheme } from './theme.ts';
 import { createSession, type Screen } from './session.ts';
 import { LAYERS, type Layer } from './audio/engine.ts';
 import { spinVinyl, placeNeedle, confetti } from './scene.ts';
+import { recordClip, canRecord, type Clip } from './record.ts';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 const bind = (key: string, text: string) =>
@@ -17,6 +18,9 @@ const bind = (key: string, text: string) =>
 const consent = $<HTMLInputElement>('consent');
 const tuneIn = $<HTMLButtonElement>('tune-in');
 const preview = $<HTMLVideoElement>('preview');
+const recordBtn = $<HTMLButtonElement>('record');
+const download = $<HTMLAnchorElement>('download');
+const LAYER_COLORS: Record<Layer, string> = { rain: '#8FB8DE', piano: '#F4B860', bass: '#F2A7A0', melody: '#A8D5A2' };
 const root = document.documentElement;
 
 const session = createSession(render, (layer) => {
@@ -27,9 +31,12 @@ const { state } = session;
 
 startTheme();
 $('sim-badge').hidden = !state.simulated;
+recordBtn.hidden = !canRecord;
 spinVinyl($('vinyl'), () => (state.screen === 'playing' ? state.tempo ?? 72 : null));
 
 let shown: Screen | null = null;
+let recording: ReturnType<typeof recordClip> | null = null;
+let clip: Clip | null = null;
 
 function render() {
   if (state.screen !== shown) enterScreen(state.screen);
@@ -97,6 +104,8 @@ function enterScreen(screen: Screen) {
   if (!firstRender) $(screen).focus(); // move screen-reader/keyboard focus to the new screen
 
   if (screen === 'tuning') void startPreview(); else stopPreview();
+  if (screen !== 'playing') recording?.stop(); // finish or turn off ends a recording early
+  if (screen === 'tape') showClip(); else discardClip(); // the clip lives only until you leave the tape screen
   if (screen === 'welcome') { consent.checked = false; tuneIn.disabled = true; }
   if (screen === 'tape') {
     const { avgBpm, avgBreathing, tapes } = session.summary();
@@ -129,6 +138,39 @@ function stopPreview() {
   preview.hidden = true;
 }
 
+function startRecording() {
+  discardClip(); // a new recording replaces the previous one
+  const rec = recordClip(
+    session.audioStream(),
+    () => ({ tempo: state.tempo ?? 72, colors: state.unlocked.map((l) => LAYER_COLORS[l]), day: root.dataset.theme === 'day', simulated: state.simulated }),
+    (left) => { $('record-label').textContent = `Recording · ${left} s left`; },
+  );
+  recording = rec;
+  recordBtn.setAttribute('aria-pressed', 'true');
+  void rec.done.then((c) => {
+    recording = null;
+    recordBtn.setAttribute('aria-pressed', 'false');
+    $('record-label').textContent = 'Record a 15 s clip';
+    if (!c) return;
+    if (state.screen === 'welcome') return URL.revokeObjectURL(c.url); // turned off mid-recording: drop it
+    clip = c;
+    if (state.screen === 'tape') showClip();
+  });
+}
+
+function showClip() {
+  bind('clipLength', clip ? `0:${String(clip.seconds).padStart(2, '0')}` : '–');
+  download.hidden = !clip;
+  if (clip) { download.href = clip.url; download.download = 'beats-to-breathe-to.webm'; }
+}
+
+function discardClip() {
+  if (clip) URL.revokeObjectURL(clip.url);
+  clip = null;
+  download.removeAttribute('href');
+}
+
+recordBtn.onclick = () => (recording ? recording.stop() : startRecording());
 consent.onchange = () => { tuneIn.disabled = !consent.checked; };
 tuneIn.onclick = () => { if (consent.checked) session.tuneIn(); };
 $('start-playing').onclick = () => session.startPlaying();

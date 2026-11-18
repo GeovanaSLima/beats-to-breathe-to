@@ -154,6 +154,8 @@ export function createSession(onChange: () => void, onUnlock: (layer: Layer) => 
 
     startPlaying,
 
+    audioStream: () => engine.audioStream(),
+
     finish() {
       stopEverything();
       go('tape');
