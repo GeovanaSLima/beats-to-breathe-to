@@ -2,7 +2,9 @@
   "name": "beats-to-breathe-to-web",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=22.18" },
+  "engines": {
+    "node": ">=22.18"
+  },
   "scripts": {
     "dev": "vite",
     "sim": "vite --open /?sim=1",
@@ -10,6 +12,9 @@
     "test": "node --test"
   },
   "dependencies": {
+    "@fontsource/bricolage-grotesque": "^5.3.0",
+    "@fontsource/caveat": "^5.3.0",
+    "@fontsource/vt323": "^5.3.0",
     "tone": "^15.1.22"
   },
   "devDependencies": {

@@ -1,90 +1,131 @@
-// Milestone 2 test harness: wires signals → audio. Milestone 3 replaces this with the screens + state machine.
-import { createSignalSource } from './signals/source.ts';
-import { PulseTracker, StabilityMeter } from './signals/smoothing.ts';
-import { createEngine, LAYERS } from './audio/engine.ts';
-import { breathingToTone, hrvToSwing } from './audio/mapping.ts';
+import '@fontsource/bricolage-grotesque/400.css';
+import '@fontsource/bricolage-grotesque/600.css';
+import '@fontsource/bricolage-grotesque/800.css';
+import '@fontsource/caveat/500.css';
+import '@fontsource/caveat/700.css';
+import '@fontsource/vt323/400.css';
+import './styles.css';
+import { startTheme } from './theme.ts';
+import { createSession, type Screen } from './session.ts';
+import { LAYERS } from './audio/engine.ts';
+import { spinVinyl, placeNeedle, confetti } from './scene.ts';
 
-const $ = (id: string) => document.getElementById(id)!;
-const source = createSignalSource();
-const engine = createEngine();
-const pulse = new PulseTracker();
-const steady = new StabilityMeter();
-let playing = false;
-let starting = false;
+const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
+const bind = (key: string, text: string) =>
+  document.querySelectorAll<HTMLElement>(`[data-bind="${key}"]`).forEach((el) => { el.textContent = text; });
 
-$('badge').textContent = source.simulated ? 'SIMULATED' : 'LIVE';
-$('badge').className = `badge ${source.simulated ? 'sim' : 'live'}`;
+const consent = $<HTMLInputElement>('consent');
+const tuneIn = $<HTMLButtonElement>('tune-in');
+const preview = $<HTMLVideoElement>('preview');
+const root = document.documentElement;
 
-const reading = (v: number | null, unit: string) => (v == null ? 'Reading…' : `${v.toFixed(1)} ${unit}`);
-
-source.onMessage(async (msg) => {
-  if (msg.type === 'status') {
-    $('status').textContent = `${msg.state}${msg.message ? ` · ${msg.message}` : ''}`;
-    return;
-  }
-  $('pulse').textContent = reading(msg.pulse, 'bpm');
-  $('breathing').textContent = reading(msg.breathing, '/min');
-
-  if (msg.pulse != null) {
-    const target = pulse.push(msg.pulse);
-    if (target != null) {
-      $('target').textContent = `${target.toFixed(1)} bpm`;
-      if (playing) engine.setTempo(target);
-      else if (!starting) {
-        starting = true;
-        try {
-          await engine.start(target);
-          playing = true;
-        } finally {
-          starting = false;
-        }
-      }
-    }
-  }
-
-  if (msg.breathing != null) {
-    engine.setBreathing(msg.breathing);
-    const { cutoff, wet } = breathingToTone(msg.breathing);
-    $('tone').textContent = `${Math.round(cutoff)} Hz · wet ${wet.toFixed(2)}`;
-    // Steady breathing only counts while the music plays, the face is in view and tapes remain.
-    if (playing && msg.faceDetected && engine.unlocked.length < LAYERS.length && steady.push(msg.breathing, 1)) {
-      const layer = engine.unlockNext();
-      engine.chime();
-      $('announce').textContent = `New tape unlocked: ${layer}`;
-    }
-    const done = engine.unlocked.length === LAYERS.length;
-    ($('steady') as HTMLProgressElement).value = done ? 20 : steady.progress;
-    $('steadyText').textContent = done ? 'all tapes playing. such a vibe ✦' : `${Math.floor(steady.progress)}/20 s`;
-    $('tapes').textContent = `${engine.unlocked.length}/4 ${engine.unlocked.join(', ')}`;
-  }
-
-  if (msg.hrv != null) {
-    const swing = hrvToSwing(msg.hrv);
-    engine.setSwing(swing);
-    $('hrv').textContent = `${msg.hrv.toFixed(0)} ms · swing ${swing.toFixed(2)}`;
-  }
+const session = createSession(render, (layer) => {
+  $('unlock-announce').textContent = `New tape unlocked: ${layer}`;
+  confetti(document.querySelector<HTMLElement>(`[data-layer="${layer}"]`)!);
 });
+const { state } = session;
 
-$('tune').onclick = async () => {
-  await engine.prime(); // inside the click: browsers only allow audio after a gesture
-  ($('tune') as HTMLButtonElement).disabled = true;
-  ($('off') as HTMLButtonElement).disabled = false;
-  $('status').textContent = 'connecting…';
-  source.start();
-};
+startTheme();
+$('sim-badge').hidden = !state.simulated;
+spinVinyl($('vinyl'), () => (state.screen === 'playing' ? state.tempo ?? 72 : null));
 
-$('off').onclick = async () => {
-  ($('off') as HTMLButtonElement).disabled = true;
-  source.stop();
-  await engine.stop();
-  playing = false;
-  pulse.reset();
-  steady.reset();
-  ($('steady') as HTMLProgressElement).value = 0;
-  $('steadyText').textContent = '0/20 s';
-  $('tapes').textContent = '0/4';
-  for (const id of ['pulse', 'target', 'bpm', 'breathing', 'tone', 'hrv', 'announce']) $(id).textContent = '–';
-  ($('tune') as HTMLButtonElement).disabled = false;
-};
+let shown: Screen | null = null;
 
-setInterval(() => { if (playing) $('bpm').textContent = `${engine.bpm.toFixed(1)} bpm`; }, 250);
+function render() {
+  if (state.screen !== shown) enterScreen(state.screen);
+  const m = state.metrics;
+  const tempo = state.tempo ?? 72;
+
+  bind('freq', tempo.toFixed(1));
+  root.style.setProperty('--beat', `${(60 / tempo).toFixed(3)}s`);
+  root.style.setProperty('--reel', `${(240 / tempo).toFixed(2)}s`);
+  if (m?.breathing) root.style.setProperty('--breath', `${(60 / m.breathing).toFixed(1)}s`);
+
+  if (state.screen === 'tuning') renderTuning();
+  if (state.screen === 'playing') renderPlaying();
+}
+
+function renderTuning() {
+  const m = state.metrics;
+  const checks = [state.faceDetected, !!m?.pulseStable, !!m?.breathingStable];
+  const firstPending = checks.indexOf(false);
+  ['step-face', 'step-pulse', 'step-breathing'].forEach((id, i) => {
+    $(id).className = checks[i] ? 'done' : i === firstPending ? 'active' : '';
+  });
+  placeNeedle($('needle'), m?.pulseStable ? state.tempo : null);
+  $('tuning-msg').textContent = state.error;
+  $('start-playing').hidden = firstPending !== -1 || state.tempo === null;
+}
+
+function renderPlaying() {
+  const m = state.metrics;
+  bind('pulse', m?.pulse != null ? `${Math.round(m.pulse)} bpm` : 'Reading…');
+  bind('breathing', m?.breathing != null ? `${Math.round(m.breathing)}/min` : 'Reading…');
+
+  $('radio-display').classList.toggle('dim', state.away);
+  $('away-msg').hidden = !state.away;
+  $('freq-note').hidden = state.away;
+
+  const count = state.unlocked.length;
+  bind('tapeCount', `${count}/4`);
+  document.querySelectorAll<HTMLElement>('.tape').forEach((el) => {
+    const on = state.unlocked.includes(el.dataset.layer as typeof LAYERS[number]);
+    el.classList.toggle('on', on);
+    el.setAttribute('aria-label', `${el.dataset.layer} tape, ${on ? 'playing' : 'locked'}`);
+  });
+  const allDone = count === LAYERS.length;
+  $('next-tape').hidden = allDone;
+  $('all-done').hidden = !allDone;
+  if (!allDone) {
+    bind('nextName', LAYERS[count]);
+    bind('steady', String(Math.floor(state.steadySeconds)));
+    $('progress-bar').style.width = `${(state.steadySeconds / 20) * 100}%`;
+  }
+}
+
+function enterScreen(screen: Screen) {
+  const firstRender = shown === null;
+  shown = screen;
+  document.body.dataset.screen = screen;
+  for (const id of ['welcome', 'tuning', 'playing', 'tape'] as const) $(id).hidden = id !== screen;
+  if (!firstRender) $(screen).focus(); // move screen-reader/keyboard focus to the new screen
+
+  if (screen === 'tuning') void startPreview(); else stopPreview();
+  if (screen === 'welcome') { consent.checked = false; tuneIn.disabled = true; }
+  if (screen === 'tape') {
+    const { avgBpm, avgBreathing, tapes } = session.summary();
+    bind('avgBpm', String(avgBpm));
+    bind('avgBreathing', avgBreathing === null ? '–' : String(avgBreathing));
+    bind('tapesUnlocked', `${tapes}/4`);
+    document.querySelector('.cassette')!.setAttribute('aria-label', `Cassette tape labeled ${document.querySelector('[data-copy="tapeName"]')!.textContent} · ${avgBpm} FM`);
+  }
+}
+
+// Self-preview for the polaroid only. The bridge owns the camera for the SDK; this stream never leaves the tab.
+async function startPreview() {
+  if (state.simulated) return;
+  try {
+    preview.srcObject = await navigator.mediaDevices.getUserMedia({ video: true });
+    if (state.screen !== 'tuning') return stopPreview(); // left the screen while the prompt was open
+    preview.hidden = false;
+    await preview.play();
+  } catch {
+    preview.hidden = true; // keep the dashed placeholder
+  }
+}
+
+function stopPreview() {
+  (preview.srcObject as MediaStream | null)?.getTracks().forEach((t) => t.stop());
+  preview.srcObject = null;
+  preview.hidden = true;
+}
+
+consent.onchange = () => { tuneIn.disabled = !consent.checked; };
+tuneIn.onclick = () => { if (consent.checked) session.tuneIn(); };
+$('start-playing').onclick = () => session.startPlaying();
+$('turn-off').onclick = () => session.turnOff();
+$('finish').onclick = () => session.finish();
+$('play-again').onclick = () => session.playAgain();
+$('back-to-start').onclick = () => session.backToStart();
+
+render();
