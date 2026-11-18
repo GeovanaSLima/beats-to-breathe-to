@@ -7,7 +7,7 @@ import {
   ProcessingStatus, ValidationCode, SmartSpectraErrorCode,
 } from '@smartspectra/node-sdk';
 import { decodeMetrics } from '@smartspectra/node-sdk/messages';
-import { toMessage } from './metrics.js';
+import { collect, toMessage } from './metrics.js';
 
 const PORT = 8787;
 const apiKey = process.env.PRESAGE_API_KEY;
@@ -18,7 +18,7 @@ if (!apiKey) {
 
 let sdk = null;
 let last = null;      // last metrics message sent
-let latest = null;    // latest decoded SDK packet since last tick
+let samples = {};     // newest SDK sample per signal since last tick
 let faceDetected = false;
 let tick = null;
 
@@ -29,7 +29,8 @@ const name = (table, v) => Object.keys(table).find((k) => table[k] === v) ?? v;
 
 async function start() {
   if (sdk) return;
-  last = latest = null;
+  last = null;
+  samples = {};
   faceDetected = false;
   sdk = new SmartSpectraSDK({
     apiKey,
@@ -49,7 +50,7 @@ async function start() {
     lastCode = code;
     if (wasFace !== faceDetected) status(faceDetected ? 'camera_on' : 'no_face', faceDetected ? '' : 'No face in view');
   });
-  sdk.on('metrics', (buf) => { latest = decodeMetrics(buf); });
+  sdk.on('metrics', (buf) => { collect(decodeMetrics(buf), samples); });
   // Logged so we can see whether the SDK's automatic LLM vitals snapshots fire (see README privacy notes).
   sdk.on('insight', (_buf, id) => console.warn(`[sdk] insight received (request ${id}): vitals were sent to Presage`));
   sdk.on('error', (code, message, retryable) => {
@@ -66,10 +67,11 @@ async function start() {
     return;
   }
   tick = setInterval(() => {
-    if (!latest && !last) return;
-    last = toMessage(latest ?? {}, last, faceDetected);
-    latest = null;
-    console.log(`pulse ${fmt(last.pulse)} bpm${last.pulseStable ? ' ✓' : ''} · breathing ${fmt(last.breathing)} /min${last.breathingStable ? ' ✓' : ''} · hrv ${fmt(last.hrv)} ms · face ${last.faceDetected ? 'yes' : 'no'}`);
+    const { pulse, breathing, hrv } = samples;
+    if (!pulse && !breathing && !hrv && !last) return;
+    last = toMessage(samples, last, faceDetected);
+    samples = {};
+    console.log(`pulse ${fmt(last.pulse)} bpm${last.pulseStable ? ' ✓' : ''}${raw(pulse, pulse?.value, last.pulse)} · breathing ${fmt(last.breathing)} /min${last.breathingStable ? ' ✓' : ''}${raw(breathing, breathing?.value, last.breathing)} · hrv ${fmt(last.hrv)} ms${raw(hrv, hrv?.rmssd, last.hrv)} · face ${last.faceDetected ? 'yes' : 'no'}`);
     send(last);
   }, 1000);
 }
@@ -82,11 +84,14 @@ async function stop() {
   sdk = null;
   try { await s.stopAsync(); } catch {}
   await s.destroy();
-  last = latest = null;
+  last = null;
+  samples = {};
   status('camera_off');
 }
 
 const fmt = (v) => (v == null ? '…' : v.toFixed(1));
+// Terminal-only: show unstable SDK values the contract still hides as null.
+const raw = (s, v, shown) => (s && shown == null && v != null ? ` (raw ${v.toFixed(1)}, ${Math.round(s.confidence ?? 0)}%)` : '');
 
 // Plain HTTP only serves the debug page; the app talks over the WebSocket.
 const server = createServer(async (req, res) => {

@@ -1,12 +1,17 @@
-// Turns a decoded SmartSpectra Metrics packet into the §4.2 "metrics" message.
-// `last` holds the previous message so values persist between packets that omit a series.
+// Turns decoded SmartSpectra Metrics packets into the §4.2 "metrics" message.
 
-const latest = (series) => (series?.length ? series[series.length - 1] : null);
+const latest = (series) => (series?.length ? series[series.length - 1] : undefined);
 
-export function toMessage(m, last, faceDetected, now = Date.now()) {
-  const pulse = latest(m?.cardio?.pulseRate);
-  const breathing = latest(m?.breathing?.rate);
-  const hrv = latest(m?.cardio?.hrv);
+// Keep the newest sample of each signal; packets can arrive faster than we send and may omit series.
+export function collect(m, into) {
+  into.pulse = latest(m?.cardio?.pulseRate) ?? into.pulse;
+  into.breathing = latest(m?.breathing?.rate) ?? into.breathing;
+  into.hrv = latest(m?.cardio?.hrv) ?? into.hrv;
+  return into;
+}
+
+// `last` is the previous message so values persist between ticks without new samples.
+export function toMessage({ pulse, breathing, hrv }, last, faceDetected, now = Date.now()) {
   // Contract: a field stays null until the SDK reports its first stable sample.
   const pick = (s, v, prev) => (s && (s.stable || prev !== null) ? v : prev);
   return {
