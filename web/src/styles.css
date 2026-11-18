@@ -181,9 +181,8 @@ main { flex: 1; display: flex; flex-direction: column; }
 .done .state-icon { border: 0; background: #A8D5A2; }
 .done .state-icon svg { display: block; }
 .tuning-msg { margin: 0; font-size: 15px; color: var(--accent); max-width: 300px; }
-.tuning-msg:empty { display: none; }
 .hint { margin: 12px 0 0; max-width: 300px; padding: 8px 12px; border-radius: 10px; background: #F4B860; color: #2A2340; font-size: 15px; font-weight: 600; line-height: 1.35; }
-.hint:empty { display: none; }
+.hint:empty { padding: 0; margin: 0; } /* stays in the tree so screen readers announce the first tip */
 .btn-pink { margin-top: 10px; display: inline-flex; align-items: center; justify-content: center; min-height: 52px; padding: 0 28px; border-radius: 999px; border: 0; background: #F2A7A0; color: #1E1A36; font-weight: 700; font-size: 17px; box-shadow: 0 6px 0 #8A4F47; cursor: pointer; }
 
 /* playing */
@@ -313,6 +312,9 @@ main { flex: 1; display: flex; flex-direction: column; }
   .tape { padding: 6px; gap: 6px; }
   .reels { padding: 4px 0; }
   .btn-rec, .btn-dark { min-height: 48px; }
+}
+@media (min-width: 761px) and (max-width: 1100px) {
+  .cam-corner { right: auto; left: 16px; } /* narrow windows: pin it over the room's window */
 }
 @media (max-width: 760px) {
   .cam-corner { position: static; margin: 0 auto; }

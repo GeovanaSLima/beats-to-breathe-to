@@ -163,7 +163,7 @@ export function createSession(onChange: () => void, onUnlock: (layer: Layer) => 
     /** Camera off; your track keeps playing softly on the tape screen until you leave it. */
     finish() {
       source.stop();
-      engine.setVolume(TAPE_VOLUME);
+      audio(async () => engine.setVolume(TAPE_VOLUME)); // queued: a pending start would ramp back to full
       go('tape');
     },
 
@@ -186,7 +186,7 @@ export function createSession(onChange: () => void, onUnlock: (layer: Layer) => 
     },
 
     /** Mute the tape while its clip plays (the clip has its own audio), restore after. */
-    duckForClip(playing: boolean) { engine.setVolume(playing ? 0 : TAPE_VOLUME); },
+    duckForClip(playing: boolean) { audio(async () => engine.setVolume(playing ? 0 : TAPE_VOLUME)); },
 
     summary() {
       const { bpmSum, bpmCount, breathSum, breathCount } = state.stats;

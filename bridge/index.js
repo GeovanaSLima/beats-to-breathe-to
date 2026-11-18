@@ -21,7 +21,8 @@ let last = null;      // last metrics message sent
 let samples = {};     // newest SDK sample per signal since last tick
 let faceDetected = false;
 let hint = '';        // SDK positioning tip ('' when the framing is fine)
-let sentView = null;  // face + hint last sent to the app
+let sentView = '';    // face + hint last sent to the app
+let candidate = '';   // face + hint seen on the previous tick
 let tick = null;
 
 const clients = new Set();
@@ -39,7 +40,7 @@ async function start() {
   samples = {};
   faceDetected = false;
   hint = '';
-  sentView = null;
+  sentView = candidate = 'false|'; // the app starts with no face and no tip
   sdk = new SmartSpectraSDK({
     apiKey,
     requestedMetrics: [...breathingMetrics, MetricType.PULSE_RATE, MetricType.HRV],
@@ -47,7 +48,7 @@ async function start() {
   });
   sdk.on('processingStatus', (s) => {
     console.log(`[sdk] processing ${name(ProcessingStatus, s)}`);
-    if (s === ProcessingStatus.kRunning) status('camera_on');
+    if (s === ProcessingStatus.kRunning) status('camera_on', hint);
   });
   let lastCode = null;
   sdk.on('validationStatus', (code, _ts, text) => {
@@ -75,9 +76,10 @@ async function start() {
     return;
   }
   tick = setInterval(() => {
-    // Once a second at most, so a tip flickering between frames doesn't flicker on screen.
+    // Send face + tip only once they've held for two ticks, so a tip flickering between frames doesn't flicker on screen.
     const view = `${faceDetected}|${hint}`;
-    if (view !== sentView) { sentView = view; status(faceDetected ? 'camera_on' : 'no_face', hint); }
+    if (view === candidate && view !== sentView) { sentView = view; status(faceDetected ? 'camera_on' : 'no_face', hint); }
+    candidate = view;
     const { pulse, breathing, hrv } = samples;
     if (!pulse && !breathing && !hrv && !last) return;
     last = toMessage(samples, last, faceDetected);

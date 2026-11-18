@@ -20,6 +20,7 @@ const consent = $<HTMLInputElement>('consent');
 const tuneIn = $<HTMLButtonElement>('tune-in');
 const previews = [$<HTMLVideoElement>('preview'), $<HTMLVideoElement>('preview-playing')];
 const clipVideo = $<HTMLVideoElement>('clip-video');
+const camPolaroid = document.querySelector<HTMLElement>('.cam-polaroid')!; // shown only once a stream is attached
 const recordBtn = $<HTMLButtonElement>('record');
 const download = $<HTMLAnchorElement>('download');
 const LAYER_COLORS: Record<Layer, string> = { rain: '#8FB8DE', piano: '#F4B860', bass: '#F2A7A0', melody: '#A8D5A2' };
@@ -34,7 +35,6 @@ const { state } = session;
 startTheme();
 $('sim-badge').hidden = !state.simulated;
 recordBtn.hidden = !canRecord;
-document.querySelector<HTMLElement>('.cam-polaroid')!.hidden = state.simulated; // no camera in sim mode
 spinVinyl($('vinyl'), () => (state.screen === 'playing' ? state.tempo ?? 72 : null));
 
 let shown: Screen | null = null;
@@ -133,6 +133,7 @@ async function startPreview() {
     if (!wantsPreview() || previewStream) return stream.getTracks().forEach((t) => t.stop());
     previewStream = stream;
     for (const v of previews) { v.srcObject = stream; v.hidden = false; void v.play().catch(() => {}); }
+    camPolaroid.hidden = false;
   } catch {
     // denied or no camera: keep the placeholder
   }
@@ -142,6 +143,7 @@ function stopPreview() {
   previewStream?.getTracks().forEach((t) => t.stop());
   previewStream = null;
   for (const v of previews) { v.srcObject = null; v.hidden = true; }
+  camPolaroid.hidden = true;
 }
 
 function startRecording() {
