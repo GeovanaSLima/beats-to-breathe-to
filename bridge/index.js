@@ -40,10 +40,13 @@ async function start() {
     console.log(`[sdk] processing ${name(ProcessingStatus, s)}`);
     if (s === ProcessingStatus.kRunning) status('camera_on');
   });
+  let lastCode = null;
   sdk.on('validationStatus', (code, _ts, hint) => {
     const wasFace = faceDetected;
     faceDetected = code !== ValidationCode.kNoFaceFound;
-    if (code !== ValidationCode.kOk) console.log(`[sdk] validation ${name(ValidationCode, code)} ${hint ?? ''}`);
+    // The SDK reports every frame; log only changes.
+    if (code !== lastCode) console.log(`[sdk] validation ${name(ValidationCode, code)} ${hint ?? ''}`);
+    lastCode = code;
     if (wasFace !== faceDetected) status(faceDetected ? 'camera_on' : 'no_face', faceDetected ? '' : 'No face in view');
   });
   sdk.on('metrics', (buf) => { latest = decodeMetrics(buf); });
