@@ -1,0 +1,16 @@
+{
+  "name": "beats-to-breathe-to-bridge",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20.6"
+  },
+  "scripts": {
+    "start": "node --env-file=../.env index.js",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "@smartspectra/node-sdk": "^3.5.0",
+    "ws": "^8.23.0"
+  }
+}

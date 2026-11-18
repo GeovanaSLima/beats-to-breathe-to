@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>bridge debug</title>
+<style>
+  body { font: 14px ui-monospace, monospace; background: #24203F; color: #F6EBDD; margin: 24px; }
+  button { font: inherit; padding: 10px 16px; margin-right: 8px; min-height: 44px; }
+  video { width: 240px; border: 4px solid #F6EBDD; display: block; margin: 16px 0; background: #141221; }
+  pre { background: #141221; padding: 12px; white-space: pre-wrap; }
+</style>
+</head>
+<body>
+<h1>bridge debug · live SDK data</h1>
+<p>Dev-only page for Milestone 1. Start asks the bridge to open the camera; Preview opens the camera in this tab too (tests camera sharing).</p>
+<button id="start">Start</button><button id="stop">Stop</button><button id="preview">Preview camera</button>
+<video id="video" autoplay muted playsinline></video>
+<p id="state">connecting…</p>
+<pre id="out">no data yet</pre>
+<script>
+  const ws = new WebSocket(`ws://${location.host}`);
+  const $ = (id) => document.getElementById(id);
+  ws.onopen = () => ($('state').textContent = 'connected');
+  ws.onclose = () => ($('state').textContent = 'disconnected');
+  ws.onmessage = (e) => {
+    const m = JSON.parse(e.data);
+    if (m.type === 'status') $('state').textContent = `status: ${m.state} ${m.message}`;
+    else $('out').textContent = JSON.stringify(m, null, 2);
+  };
+  $('start').onclick = () => ws.send(JSON.stringify({ type: 'start' }));
+  $('stop').onclick = () => {
+    ws.send(JSON.stringify({ type: 'stop' }));
+    $('video').srcObject?.getTracks().forEach((t) => t.stop());
+    $('video').srcObject = null;
+  };
+  $('preview').onclick = async () => {
+    try { $('video').srcObject = await navigator.mediaDevices.getUserMedia({ video: true }); }
+    catch (e) { $('state').textContent = `preview failed: ${e.name} ${e.message}`; }
+  };
+</script>
+</body>
+</html>
