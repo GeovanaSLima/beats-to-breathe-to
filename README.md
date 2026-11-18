@@ -1,6 +1,6 @@
 # beats to breathe to
 
-A lo-fi radio that plays at your heart rate. Your webcam reads your pulse and breathing with the [Presage SmartSpectra SDK](https://smartspectra.presagetech.com/), and the music follows: your heartbeat sets the tempo, your breathing shapes the sound, and calm, steady breathing unlocks new cassette tapes (rain → piano → bass → melody). Every session ends as a tape only you could have played, and you can save a 15 s clip of it.
+A lo-fi radio that plays at your heart rate. Your webcam reads your pulse and breathing with the [Presage SmartSpectra SDK](https://smartspectra.presagetech.com/), and the music follows: your heartbeat sets the tempo, your breathing shapes the sound, and calm, steady breathing unlocks new cassette tapes (rain → piano → bass → melody). Every session ends as a tape only you could have played: it keeps playing softly on the final screen, and you can watch and download a 15 s clip of it.
 
 > This is a musical instrument, not a health tool.
 
@@ -8,7 +8,7 @@ A lo-fi radio that plays at your heart rate. Your webcam reads your pulse and br
 
 | Your signal | What it changes in the music |
 |---|---|
-| **Pulse** (bpm) | The tempo. Smoothed (EMA), kept between 60 and 110 bpm, ignores changes under 2 bpm and glides to the new tempo over 6 s. Shown as the station frequency, e.g. "72.0 FM". |
+| **Pulse** (bpm) | The tempo. Smoothed (EMA), kept between 60 and 110 bpm, ignores changes under 1 bpm and glides to the new tempo over 3 s. Shown as the station frequency, e.g. "72.0 FM". |
 | **Breathing rate** (/min) | A low-pass filter and the reverb. Slow breathing (10/min or less) opens the sound up (8 kHz, more reverb). Fast breathing (18/min or more) muffles it (1.2 kHz, drier). Changes over 3 s. |
 | **Breathing steadiness** | Unlocks tapes. Staying within ±2/min of your recent median for 20 s unlocks the next layer. Unsteady moments slow the counter down instead of resetting it. |
 | **HRV** (RMSSD) | A little swing in the groove (more variability, more swing, up to 0.15). |
@@ -26,7 +26,7 @@ A drum loop with vinyl crackle plays the whole time. If the camera loses your fa
 [web/: Vite + TypeScript · Tone.js audio · DOM/CSS scene · canvas + MediaRecorder clip]
 ```
 
-There is no browser version of the SDK, so a small local **bridge** runs the [Node SDK](https://www.npmjs.com/package/@smartspectra/node-sdk), owns the camera and sends numbers to the web app. The web app never sends the camera anywhere; it only opens it for the "live camera" polaroid while tuning in.
+There is no browser version of the SDK, so a small local **bridge** runs the [Node SDK](https://www.npmjs.com/package/@smartspectra/node-sdk), owns the camera and sends numbers to the web app. The web app never sends the camera anywhere; it only opens it for the "live camera" polaroid while tuning in and playing. If the SDK asks you to adjust ("Place more of the chest in view."), that tip shows under the polaroid.
 
 - `bridge/index.js`: SDK session, WebSocket server, start/stop.
 - `web/src/signals/`: bridge client, simulator, smoothing and steadiness.
@@ -97,7 +97,7 @@ cd web && npm test
 
 - **Light and movement matter.** Low or uneven light, strong backlight, or moving around a lot makes the SDK's readings slower to settle or drop out.
 - **Warm-up delay.** The SDK needs time to report stable values: about 10 s for pulse and 20 s or more for breathing.
-- **Tempo lags on purpose.** Smoothing and the 6 s glide keep the music from jumping, so a pulse change shows up in the tempo after a few seconds.
+- **Tempo lags a little on purpose.** Smoothing and the 3 s glide keep the music from jumping, so a pulse change shows up in the tempo after a few seconds.
 - **Clip duration metadata.** Chrome writes webm files without a duration, so some players show no seek bar until the clip has played once. The clip itself is complete.
 - **Clip recording needs the tab visible.** Browsers pause drawing in hidden tabs, so the clip's picture freezes if you switch away while recording.
 - **Desktop only.** The SDK runs in the bridge on your computer, next to the browser.

@@ -20,6 +20,8 @@ let sdk = null;
 let last = null;      // last metrics message sent
 let samples = {};     // newest SDK sample per signal since last tick
 let faceDetected = false;
+let hint = '';        // SDK positioning tip ('' when the framing is fine)
+let sentView = null;  // face + hint last sent to the app
 let tick = null;
 
 const clients = new Set();
@@ -36,6 +38,8 @@ async function start() {
   last = null;
   samples = {};
   faceDetected = false;
+  hint = '';
+  sentView = null;
   sdk = new SmartSpectraSDK({
     apiKey,
     requestedMetrics: [...breathingMetrics, MetricType.PULSE_RATE, MetricType.HRV],
@@ -46,13 +50,12 @@ async function start() {
     if (s === ProcessingStatus.kRunning) status('camera_on');
   });
   let lastCode = null;
-  sdk.on('validationStatus', (code, _ts, hint) => {
-    const wasFace = faceDetected;
+  sdk.on('validationStatus', (code, _ts, text) => {
     faceDetected = code !== ValidationCode.kNoFaceFound;
-    // The SDK reports every frame; log only changes.
-    if (code !== lastCode) console.log(`[sdk] validation ${name(ValidationCode, code)} ${hint ?? ''}`);
+    hint = code === ValidationCode.kOk ? '' : (text || (faceDetected ? '' : 'No face in view'));
+    // The SDK reports every frame; log only changes. The app gets face + hint from the 1 s tick.
+    if (code !== lastCode) console.log(`[sdk] validation ${name(ValidationCode, code)} ${text ?? ''}`);
     lastCode = code;
-    if (wasFace !== faceDetected) status(faceDetected ? 'camera_on' : 'no_face', faceDetected ? '' : 'No face in view');
   });
   sdk.on('metrics', (buf) => { collect(decodeMetrics(buf), samples); });
   // Logged so we can see whether the SDK's automatic LLM vitals snapshots fire (see README privacy notes).
@@ -72,6 +75,9 @@ async function start() {
     return;
   }
   tick = setInterval(() => {
+    // Once a second at most, so a tip flickering between frames doesn't flicker on screen.
+    const view = `${faceDetected}|${hint}`;
+    if (view !== sentView) { sentView = view; status(faceDetected ? 'camera_on' : 'no_face', hint); }
     const { pulse, breathing, hrv } = samples;
     if (!pulse && !breathing && !hrv && !last) return;
     last = toMessage(samples, last, faceDetected);

@@ -14,7 +14,7 @@ export function createSimulator(): SignalSource {
     start() {
       if (timer) return;
       t = 0;
-      cb({ type: 'status', state: 'camera_on', message: 'simulated' });
+      cb({ type: 'status', state: 'camera_on', message: '' });
       timer = setInterval(() => {
         t++;
         pulse = walk(pulse, 1.6, 66, 76);
@@ -34,7 +34,7 @@ export function createSimulator(): SignalSource {
     stop() {
       clearInterval(timer);
       timer = undefined;
-      cb({ type: 'status', state: 'camera_off', message: 'simulated' });
+      cb({ type: 'status', state: 'camera_off', message: '' });
     },
   };
 }

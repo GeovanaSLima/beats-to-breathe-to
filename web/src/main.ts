@@ -12,12 +12,14 @@ import { spinVinyl, placeNeedle, confetti } from './scene.ts';
 import { recordClip, canRecord, type Clip } from './record.ts';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
+// Writes only changed text, so live regions don't re-announce on every render.
 const bind = (key: string, text: string) =>
-  document.querySelectorAll<HTMLElement>(`[data-bind="${key}"]`).forEach((el) => { el.textContent = text; });
+  document.querySelectorAll<HTMLElement>(`[data-bind="${key}"]`).forEach((el) => { if (el.textContent !== text) el.textContent = text; });
 
 const consent = $<HTMLInputElement>('consent');
 const tuneIn = $<HTMLButtonElement>('tune-in');
-const preview = $<HTMLVideoElement>('preview');
+const previews = [$<HTMLVideoElement>('preview'), $<HTMLVideoElement>('preview-playing')];
+const clipVideo = $<HTMLVideoElement>('clip-video');
 const recordBtn = $<HTMLButtonElement>('record');
 const download = $<HTMLAnchorElement>('download');
 const LAYER_COLORS: Record<Layer, string> = { rain: '#8FB8DE', piano: '#F4B860', bass: '#F2A7A0', melody: '#A8D5A2' };
@@ -32,9 +34,11 @@ const { state } = session;
 startTheme();
 $('sim-badge').hidden = !state.simulated;
 recordBtn.hidden = !canRecord;
+document.querySelector<HTMLElement>('.cam-polaroid')!.hidden = state.simulated; // no camera in sim mode
 spinVinyl($('vinyl'), () => (state.screen === 'playing' ? state.tempo ?? 72 : null));
 
 let shown: Screen | null = null;
+let previewStream: MediaStream | null = null;
 let recording: ReturnType<typeof recordClip> | null = null;
 let clip: Clip | null = null;
 
@@ -44,6 +48,7 @@ function render() {
   const tempo = state.tempo ?? 72;
 
   bind('freq', tempo.toFixed(1));
+  bind('hint', state.hint);
   root.style.setProperty('--beat', `${(60 / tempo).toFixed(3)}s`);
   root.style.setProperty('--reel', `${(240 / tempo).toFixed(2)}s`);
   if (m?.breathing) root.style.setProperty('--breath', `${(60 / m.breathing).toFixed(1)}s`);
@@ -103,7 +108,7 @@ function enterScreen(screen: Screen) {
   for (const id of ['welcome', 'tuning', 'playing', 'tape'] as const) $(id).hidden = id !== screen;
   if (!firstRender) $(screen).focus(); // move screen-reader/keyboard focus to the new screen
 
-  if (screen === 'tuning') void startPreview(); else stopPreview();
+  if (wantsPreview()) void startPreview(); else stopPreview();
   if (screen !== 'playing') recording?.stop(); // finish or turn off ends a recording early
   if (screen === 'tape') showClip(); else discardClip(); // the clip lives only until you leave the tape screen
   if (screen === 'welcome') { consent.checked = false; tuneIn.disabled = true; }
@@ -117,25 +122,26 @@ function enterScreen(screen: Screen) {
   }
 }
 
-// Self-preview for the polaroid only. The bridge owns the camera for the SDK; this stream never leaves the tab.
+// Self-preview for the polaroids (tuning + playing). The bridge owns the camera for the SDK; this stream never leaves the tab.
+const wantsPreview = () => state.screen === 'tuning' || state.screen === 'playing';
+
 async function startPreview() {
-  if (state.simulated) return;
+  if (state.simulated || previewStream) return; // tuning → playing keeps the same stream
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-    stopPreview(); // an overlapping earlier request may have attached a stream; never orphan one
-    if (state.screen !== 'tuning') return stream.getTracks().forEach((t) => t.stop()); // left while the prompt was open
-    preview.srcObject = stream;
-    preview.hidden = false;
-    await preview.play();
+    // Left while the prompt was open, or an overlapping request already attached one: never orphan a stream.
+    if (!wantsPreview() || previewStream) return stream.getTracks().forEach((t) => t.stop());
+    previewStream = stream;
+    for (const v of previews) { v.srcObject = stream; v.hidden = false; void v.play().catch(() => {}); }
   } catch {
-    preview.hidden = true; // keep the dashed placeholder
+    // denied or no camera: keep the placeholder
   }
 }
 
 function stopPreview() {
-  (preview.srcObject as MediaStream | null)?.getTracks().forEach((t) => t.stop());
-  preview.srcObject = null;
-  preview.hidden = true;
+  previewStream?.getTracks().forEach((t) => t.stop());
+  previewStream = null;
+  for (const v of previews) { v.srcObject = null; v.hidden = true; }
 }
 
 function startRecording() {
@@ -161,15 +167,27 @@ function startRecording() {
 
 function showClip() {
   bind('clipLength', clip ? `0:${String(clip.seconds).padStart(2, '0')}` : '–');
-  download.hidden = !clip;
-  if (clip) download.href = clip.url;
+  download.hidden = clipVideo.hidden = !clip;
+  if (clip) download.href = clipVideo.src = clip.url;
 }
 
 function discardClip() {
   if (clip) URL.revokeObjectURL(clip.url);
   clip = null;
   download.removeAttribute('href');
+  clipVideo.removeAttribute('src');
+  clipVideo.load(); // drop the decoded clip
 }
+
+// The clip has its own audio: mute the tape while it plays. Guarded so leaving the screen can't bring the tape back.
+clipVideo.onplay = () => { if (state.screen === 'tape') session.duckForClip(true); };
+clipVideo.onpause = () => { if (state.screen === 'tape') session.duckForClip(false); };
+// Chrome's webm has no duration, so the seek bar is broken until the end; seeking far makes it compute one.
+clipVideo.onloadedmetadata = () => {
+  if (clipVideo.duration !== Infinity) return;
+  clipVideo.currentTime = 1e9;
+  clipVideo.addEventListener('timeupdate', () => { clipVideo.currentTime = 0; }, { once: true });
+};
 
 recordBtn.onclick = () => (recording ? recording.stop() : startRecording());
 consent.onchange = () => { tuneIn.disabled = !consent.checked; };

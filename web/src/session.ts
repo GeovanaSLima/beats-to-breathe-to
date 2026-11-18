@@ -11,6 +11,7 @@ export type Screen = 'welcome' | 'tuning' | 'playing' | 'tape';
 
 const AWAY_AFTER_MS = 5000;   // no face this long while playing → hold tempo, dim the radio
 const AUTO_START_MS = 1500;   // tuning → playing once all three checks pass
+const TAPE_VOLUME = 0.5;      // the tape screen plays your track softly
 
 export function createSession(onChange: () => void, onUnlock: (layer: Layer) => void) {
   const source = createSignalSource();
@@ -25,6 +26,7 @@ export function createSession(onChange: () => void, onUnlock: (layer: Layer) => 
     metrics: null as Metrics | null,
     faceDetected: false,
     tempo: null as number | null,   // smoothed pulse = station frequency
+    hint: '',                       // SDK framing tip, e.g. "Place more of the chest in view." 
     steadySeconds: 0,
     unlocked: [] as Layer[],
     away: false,
@@ -85,6 +87,7 @@ export function createSession(onChange: () => void, onUnlock: (layer: Layer) => 
       // Keep an error visible through the camera_off that follows it; clear it once the camera is back.
       if (msg.state === 'error') state.error = msg.message;
       else if (msg.state === 'camera_on') state.error = '';
+      state.hint = msg.state === 'camera_on' || msg.state === 'no_face' ? msg.message : '';
       // camera_on doesn't mean a face was found; face presence comes from metrics.faceDetected.
       if (msg.state === 'no_face' || msg.state === 'error') setFace(false);
     } else {
@@ -135,6 +138,7 @@ export function createSession(onChange: () => void, onUnlock: (layer: Layer) => 
   function resetSignals() {
     state.metrics = null;
     state.error = '';
+    state.hint = '';
     setFace(false);
     noFaceSince = null;
   }
@@ -156,12 +160,15 @@ export function createSession(onChange: () => void, onUnlock: (layer: Layer) => 
 
     audioStream: () => engine.audioStream(),
 
+    /** Camera off; your track keeps playing softly on the tape screen until you leave it. */
     finish() {
-      stopEverything();
+      source.stop();
+      engine.setVolume(TAPE_VOLUME);
       go('tape');
     },
 
     playAgain() {
+      audio(() => engine.stop());
       resetSignals();
       source.start();
       startPlaying();
@@ -173,7 +180,13 @@ export function createSession(onChange: () => void, onUnlock: (layer: Layer) => 
       go('welcome');
     },
 
-    backToStart() { go('welcome'); },
+    backToStart() {
+      audio(() => engine.stop());
+      go('welcome');
+    },
+
+    /** Mute the tape while its clip plays (the clip has its own audio), restore after. */
+    duckForClip(playing: boolean) { engine.setVolume(playing ? 0 : TAPE_VOLUME); },
 
     summary() {
       const { bpmSum, bpmCount, breathSum, breathCount } = state.stats;

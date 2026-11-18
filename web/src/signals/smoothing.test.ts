@@ -5,7 +5,7 @@ import { PulseTracker, StabilityMeter } from './smoothing.ts';
 test('pulse: first value sets target, small moves are ignored, clamped to 60–110', () => {
   const p = new PulseTracker();
   assert.equal(p.push(72), 72);
-  assert.equal(p.push(75), null, 'EMA moves 0.6 bpm: below the 2 bpm deadband');
+  assert.equal(p.push(73), null, 'EMA moves 0.3 bpm: below the 1 bpm deadband');
   for (let i = 0; i < 30; i++) p.push(140);
   assert.equal(p.target, 110);
   const low = new PulseTracker();
@@ -15,7 +15,7 @@ test('pulse: first value sets target, small moves are ignored, clamped to 60–1
 test('pulse: one outlier barely moves the tempo', () => {
   const p = new PulseTracker();
   p.push(88);
-  assert.equal(p.push(100), 90.4, 'EMA α 0.2 → 88 + 0.2 × 12');
+  assert.ok(Math.abs(p.push(100)! - 91.6) < 1e-9, 'EMA α 0.3 → 88 + 0.3 × 12');
 });
 
 test('stability: 20 steady seconds unlock, then the counter resets', () => {

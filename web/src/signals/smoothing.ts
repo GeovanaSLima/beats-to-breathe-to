@@ -4,12 +4,12 @@
 export const PULSE_MIN = 60;
 export const PULSE_MAX = 110;
 
-/** EMA-smoothed, clamped pulse that only reports a new target when it moved ≥ 2 bpm. */
+/** EMA-smoothed, clamped pulse that only reports a new target when it moved ≥ 1 bpm. */
 export class PulseTracker {
   private ema: number | null = null;
   target: number | null = null;
-  private alpha = 0.2;
-  private deadband = 2;
+  private alpha = 0.3;   // faster than HANDOFF's 0.2 so tempo changes are audible (user's call)
+  private deadband = 1;
 
   /** Feed a raw bpm; returns the new tempo target, or null if it should stay put. */
   push(bpm: number): number | null {

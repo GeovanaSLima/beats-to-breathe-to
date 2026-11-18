@@ -126,7 +126,10 @@ export function createEngine() {
       unlocked.clear();
     },
 
-    setTempo(bpm: number) { transport.bpm.rampTo(bpm, 6); },
+    setTempo(bpm: number) { transport.bpm.rampTo(bpm, 3); },
+
+    /** Overall level (1 = full); used to play the tape softly and to duck it under the clip. */
+    setVolume(level: number) { master.gain.rampTo(level, 0.8); },
 
     setBreathing(rate: number) {
       const { cutoff, wet } = breathingToTone(rate);

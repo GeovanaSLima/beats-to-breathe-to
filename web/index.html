@@ -184,7 +184,7 @@
       <figure class="polaroid">
         <div class="photo">
           <svg width="90" height="110" viewBox="0 0 90 110" fill="none" stroke="#8FB8DE" stroke-width="2.5" stroke-dasharray="6 6" aria-hidden="true"><ellipse cx="45" cy="50" rx="32" ry="42"></ellipse></svg>
-          <video id="preview" muted playsinline aria-label="Your camera preview, shown only on this screen" hidden></video>
+          <video id="preview" muted playsinline aria-label="Your camera preview, it never leaves this tab" hidden></video>
           <span class="tag">live camera</span>
         </div>
         <figcaption class="hand" data-copy="caption"></figcaption>
@@ -196,6 +196,7 @@
           <li id="step-breathing"><span class="state-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1E1A36" stroke-width="3" stroke-linecap="round" aria-hidden="true"><path d="M5 12l5 5 9-10"></path></svg></span><span>Reading your breathing<span class="sr-only">, waiting</span></span></li>
         </ul>
         <p class="tuning-msg" id="tuning-msg" role="status"></p>
+        <p class="hint" data-bind="hint" role="status"></p>
         <button type="button" class="btn-pink" id="start-playing" hidden>Found your rhythm · start ▸</button>
       </div>
     </div>
@@ -203,6 +204,16 @@
 
   <!-- 3 · Now playing -->
   <section class="screen" id="playing" aria-label="Now playing" tabindex="-1" hidden>
+    <div class="cam-corner">
+    <figure class="polaroid cam-polaroid">
+      <div class="photo">
+        <video id="preview-playing" muted playsinline aria-label="Your camera preview, it never leaves this tab" hidden></video>
+        <span class="tag">live camera</span>
+      </div>
+      <figcaption class="hand" data-copy="caption"></figcaption>
+    </figure>
+    <p class="hint" data-bind="hint" role="status"></p>
+    </div>
     <div class="right-col">
       <section class="radio" aria-label="Radio">
         <div class="radio-display" id="radio-display">
@@ -257,6 +268,7 @@
 
   <!-- 4 · Your tape -->
   <section class="screen" id="tape" aria-labelledby="tape-title" tabindex="-1" hidden>
+    <div class="tape-left">
     <div class="cassette" role="img">
       <span class="screw" style="left: 12px; top: 12px"></span><span class="screw" style="right: 12px; top: 12px"></span>
       <span class="screw" style="left: 12px; bottom: 12px"></span><span class="screw" style="right: 12px; bottom: 12px"></span>
@@ -269,6 +281,8 @@
         </div>
       </div>
       <div class="cassette-foot"><i></i><i></i></div>
+    </div>
+    <video class="clip" id="clip-video" controls playsinline aria-label="Your 15 second clip" hidden></video>
     </div>
     <div class="tape-info">
       <p class="kicker hand" data-copy="kicker"></p>
