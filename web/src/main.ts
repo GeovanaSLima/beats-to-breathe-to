@@ -154,6 +154,7 @@ function startRecording() {
     if (!c) return;
     if (state.screen === 'welcome') return URL.revokeObjectURL(c.url); // turned off mid-recording: drop it
     clip = c;
+    $('unlock-announce').textContent = 'Clip ready, download it from your tape';
     if (state.screen === 'tape') showClip();
   });
 }
@@ -161,7 +162,7 @@ function startRecording() {
 function showClip() {
   bind('clipLength', clip ? `0:${String(clip.seconds).padStart(2, '0')}` : '–');
   download.hidden = !clip;
-  if (clip) { download.href = clip.url; download.download = 'beats-to-breathe-to.webm'; }
+  if (clip) download.href = clip.url;
 }
 
 function discardClip() {

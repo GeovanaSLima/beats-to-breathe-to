@@ -21,7 +21,7 @@ A drum loop with vinyl crackle plays the whole time. If the camera loses your fa
 [Webcam] → [bridge/: Node + SmartSpectra SDK]
                  │  JSON metrics, about once a second
                  ▼
-          WebSocket ws://127.0.0.1:8787 (localhost only)
+          WebSocket ws://localhost:8787 (localhost only)
                  ▼
 [web/: Vite + TypeScript · Tone.js audio · DOM/CSS scene · canvas + MediaRecorder clip]
 ```
@@ -40,7 +40,7 @@ There is no browser version of the SDK, so a small local **bridge** runs the [No
 - Node.js 22.18 or newer.
 - A webcam.
 - A free Presage API key: [register here](https://physiology.presagetech.com/auth/register).
-- Chrome or another Chromium browser for clip recording (Safari can't record webm, so the Record button is hidden there).
+- A browser that can record webm with MediaRecorder for clips (built and tested in Chrome). Where that's missing, the Record button is hidden.
 
 ## Setup
 

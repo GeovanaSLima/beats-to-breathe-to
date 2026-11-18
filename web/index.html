@@ -139,7 +139,7 @@
         <ul class="promises">
           <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2A2340" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="3" y="11" width="18" height="10" rx="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>Your camera image never leaves your computer</li>
           <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2A2340" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h12M12 6l6 6-6 6"></path></svg>Only the numbers go to Presage, the SDK maker, for automatic AI summaries</li>
-          <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2A2340" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M8 12h8"></path></svg>Nothing is recorded or saved, no analytics</li>
+          <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2A2340" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M8 12h8"></path></svg>Nothing is saved unless you download your clip, no analytics</li>
         </ul>
         <label class="consent">
           <input type="checkbox" id="consent">
@@ -247,7 +247,7 @@
     </div>
     <div class="actions">
       <button type="button" class="btn-rec" id="record" aria-pressed="false" hidden>
-        <span class="rec-dot" aria-hidden="true"><i></i></span><span id="record-label">Record a 15 s clip</span>
+        <span class="rec-dot" aria-hidden="true"><i></i></span><span class="sr-only">Record a 15 s clip</span><span id="record-label" aria-hidden="true">Record a 15 s clip</span>
       </button>
       <button type="button" class="btn-dark" id="finish">Finish &amp; see my tape
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#F6EBDD" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"></path></svg>
@@ -280,7 +280,7 @@
         <li><b style="color: #F2A7A0" data-bind="clipLength">–</b> clip</li>
       </ul>
       <div class="tape-actions">
-        <a class="btn-amber" id="download" hidden>
+        <a class="btn-amber" id="download" download="beats-to-breathe-to.webm" hidden>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2A2340" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"></path></svg>
           Download clip (.webm)
         </a>

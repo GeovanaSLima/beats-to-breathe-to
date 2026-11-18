@@ -6,7 +6,7 @@ const H = 720;
 
 const MIME = ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm']
   .find((t) => typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported(t));
-/** False where MediaRecorder can't make webm (e.g. Safari); the Record button stays hidden there. */
+/** False where MediaRecorder can't make webm; the Record button stays hidden there. */
 export const canRecord = MIME !== undefined;
 
 export type ClipView = { tempo: number; colors: string[]; day: boolean; simulated: boolean };
@@ -31,6 +31,7 @@ export function recordClip(audio: MediaStream, view: () => ClipView, onTick: (se
     draw(ctx, v, (now - started) / 1000, angle);
     frame = requestAnimationFrame(loop);
   };
+  try { recorder.start(1000); } catch (e) { video.getTracks().forEach((t) => t.stop()); throw e; } // before any loop starts
   frame = requestAnimationFrame(loop);
 
   const ticker = setInterval(() => {
@@ -51,11 +52,10 @@ export function recordClip(audio: MediaStream, view: () => ClipView, onTick: (se
       video.getTracks().forEach((t) => t.stop());
       const seconds = Math.min(CLIP_SECONDS, Math.round((performance.now() - started) / 1000));
       // shortcut: Chrome's webm has no duration header (players show no seek bar until it ends), patch it with fix-webm-duration if that matters.
-      resolve(chunks.length ?{ url: URL.createObjectURL(new Blob(chunks, { type: 'video/webm' })), seconds } : null);
+      resolve(chunks.length && seconds >= 1 ? { url: URL.createObjectURL(new Blob(chunks, { type: 'video/webm' })), seconds } : null);
     };
   });
 
-  recorder.start(1000);
   return { stop, done };
 }
 
