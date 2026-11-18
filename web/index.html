@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>beats to breathe to</title>
+<style>
+  /* Milestone 2 test page only; the real screens arrive in Milestone 3. */
+  body { margin: 0; padding: 24px; background: #24203F; color: #F6EBDD; font: 15px/1.5 ui-monospace, monospace; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  .badge { display: inline-block; padding: 2px 10px; border-radius: 4px; font-weight: 700; letter-spacing: 1px; }
+  .badge.sim { background: #F4B860; color: #2A2340; }
+  .badge.live { background: #A8D5A2; color: #2A2340; }
+  button { font: inherit; min-height: 44px; padding: 8px 18px; margin: 12px 8px 12px 0; border-radius: 22px; border: 0; cursor: pointer; }
+  button:focus-visible { outline: 3px solid #F4B860; outline-offset: 2px; }
+  button:disabled { opacity: .5; cursor: default; }
+  dl { display: grid; grid-template-columns: max-content 1fr; gap: 4px 16px; background: #141221; padding: 16px; border-radius: 8px; max-width: 560px; }
+  dt { color: #CFC6E8; }
+  dd { margin: 0; }
+  progress { width: 200px; accent-color: #A8D5A2; }
+</style>
+</head>
+<body>
+<h1>beats to breathe to · audio test <span id="badge" class="badge"></span></h1>
+<p>This is a musical instrument, not a health tool.</p>
+<button id="tune">Tune in</button><button id="off" disabled>Turn off</button>
+<dl>
+  <dt>status</dt><dd id="status">idle</dd>
+  <dt>pulse (raw)</dt><dd id="pulse">–</dd>
+  <dt>tempo target</dt><dd id="target">–</dd>
+  <dt>tempo now</dt><dd id="bpm">–</dd>
+  <dt>breathing</dt><dd id="breathing">–</dd>
+  <dt>filter · reverb</dt><dd id="tone">–</dd>
+  <dt>hrv · swing</dt><dd id="hrv">–</dd>
+  <dt>steady breathing</dt><dd><progress id="steady" max="20" value="0"></progress> <span id="steadyText">0/20 s</span></dd>
+  <dt>tapes</dt><dd id="tapes">0/4</dd>
+</dl>
+<p id="announce" aria-live="polite"></p>
+<script type="module" src="/src/main.ts"></script>
+</body>
+</html>
