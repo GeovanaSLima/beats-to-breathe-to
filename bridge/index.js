@@ -27,6 +27,10 @@ const send = (msg) => { const s = JSON.stringify(msg); for (const c of clients) 
 const status = (state, message = '') => { console.log(`[status] ${state} ${message}`); send({ type: 'status', state, message }); };
 const name = (table, v) => Object.keys(table).find((k) => table[k] === v) ?? v;
 
+// Serialize start/stop: native SDK state is process-global, so a start must wait for the previous destroy.
+let lifecycle = Promise.resolve();
+const run = (fn) => (lifecycle = lifecycle.then(fn).catch((e) => status('error', e.message)));
+
 async function start() {
   if (sdk) return;
   last = null;
@@ -35,7 +39,7 @@ async function start() {
   sdk = new SmartSpectraSDK({
     apiKey,
     requestedMetrics: [...breathingMetrics, MetricType.PULSE_RATE, MetricType.HRV],
-    enableTelemetry: false, // the app promises no analytics; README discloses the remaining auth call
+    enableTelemetry: false, // no usage/diagnostic reports; auth + LLM insights are disclosed in README
   });
   sdk.on('processingStatus', (s) => {
     console.log(`[sdk] processing ${name(ProcessingStatus, s)}`);
@@ -56,6 +60,7 @@ async function start() {
   sdk.on('error', (code, message, retryable) => {
     console.error(`[sdk] error ${name(SmartSpectraErrorCode, code)}: ${message} (retryable=${retryable})`);
     status('error', message);
+    run(stop); // don't leave a dead session re-sending frozen metrics
   });
 
   sdk.useCamera(CameraSelection.default);
@@ -71,7 +76,12 @@ async function start() {
     if (!pulse && !breathing && !hrv && !last) return;
     last = toMessage(samples, last, faceDetected);
     samples = {};
-    console.log(`pulse ${fmt(last.pulse)} bpm${last.pulseStable ? ' ✓' : ''}${raw(pulse, pulse?.value, last.pulse)} · breathing ${fmt(last.breathing)} /min${last.breathingStable ? ' ✓' : ''}${raw(breathing, breathing?.value, last.breathing)} · hrv ${fmt(last.hrv)} ms${raw(hrv, hrv?.rmssd, last.hrv)} · face ${last.faceDetected ? 'yes' : 'no'}`);
+    console.log([
+      describe('pulse', 'bpm', last.pulse, last.pulseStable, pulse, pulse?.value),
+      describe('breathing', '/min', last.breathing, last.breathingStable, breathing, breathing?.value),
+      describe('hrv', 'ms', last.hrv, false, hrv, hrv?.rmssd),
+      `face ${last.faceDetected ? 'yes' : 'no'}`,
+    ].join(' · '));
     send(last);
   }, 1000);
 }
@@ -90,8 +100,12 @@ async function stop() {
 }
 
 const fmt = (v) => (v == null ? '…' : v.toFixed(1));
-// Terminal-only: show unstable SDK values the contract still hides as null.
-const raw = (s, v, shown) => (s && shown == null && v != null ? ` (raw ${v.toFixed(1)}, ${Math.round(s.confidence ?? 0)}%)` : '');
+
+// Terminal line for one signal; while the contract still sends null, show the raw unstable SDK value.
+function describe(label, unit, shown, stable, sample, rawValue) {
+  const raw = shown == null && rawValue != null ? ` (raw ${rawValue.toFixed(1)}, ${Math.round(sample.confidence ?? 0)}%)` : '';
+  return `${label} ${fmt(shown)} ${unit}${stable ? ' ✓' : ''}${raw}`;
+}
 
 // Plain HTTP only serves the debug page; the app talks over the WebSocket.
 const server = createServer(async (req, res) => {
@@ -109,10 +123,10 @@ wss.on('connection', (ws, req) => {
   ws.on('message', (data) => {
     let msg;
     try { msg = JSON.parse(data); } catch { return; }
-    if (msg.type === 'start') start();
-    else if (msg.type === 'stop') stop();
+    if (msg?.type === 'start') run(start);
+    else if (msg?.type === 'stop') run(stop);
   });
-  ws.on('close', () => { clients.delete(ws); if (!clients.size) stop(); });
+  ws.on('close', () => { clients.delete(ws); if (!clients.size) run(stop); });
 });
 
 server.listen(PORT, '127.0.0.1', () => {
@@ -120,4 +134,4 @@ server.listen(PORT, '127.0.0.1', () => {
   console.log('camera stays off until an app sends {"type":"start"}');
 });
 
-for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, async () => { await stop(); process.exit(0); });
+for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, async () => { await run(stop); process.exit(0); });
