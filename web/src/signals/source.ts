@@ -40,8 +40,8 @@ function createBridgeClient(): SignalSource {
     stop() {
       wanted = false;
       send('stop');
-      // Closing the socket also makes the bridge release the camera if this was the last client.
-      ws?.close();
+      // Detach first so a quick re-start opens a fresh socket instead of reusing this closing one.
+      if (ws) { ws.onclose = null; ws.close(); ws = null; }
     },
   };
 }

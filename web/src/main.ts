@@ -32,9 +32,12 @@ source.onMessage(async (msg) => {
       if (playing) engine.setTempo(target);
       else if (!starting) {
         starting = true;
-        await engine.start(target);
-        playing = true;
-        starting = false;
+        try {
+          await engine.start(target);
+          playing = true;
+        } finally {
+          starting = false;
+        }
       }
     }
   }

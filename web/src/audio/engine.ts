@@ -92,8 +92,6 @@ export function createEngine() {
     }
   }, '16n');
 
-  let built: Promise<void> | null = null;
-
   return {
     get bpm() { return transport.bpm.value; },
     get unlocked() { return LAYERS.filter((l) => unlocked.has(l)); },
@@ -102,12 +100,11 @@ export function createEngine() {
     prime: () => Tone.start(),
 
     async start(bpm: number) {
-      await Tone.start();
-      built ??= reverb.ready;
-      await built;
+      await reverb.ready;
       transport.bpm.value = bpm;
       hiss.start();
       transport.start('+0.05');
+      master.gain.setValueAtTime(0, Tone.now()); // fade in from silence even after an interrupted stop
       master.gain.rampTo(1, 1.5);
     },
 

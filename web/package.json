@@ -2,6 +2,7 @@
   "name": "beats-to-breathe-to-web",
   "private": true,
   "type": "module",
+  "engines": { "node": ">=22.18" },
   "scripts": {
     "dev": "vite",
     "sim": "vite --open /?sim=1",
