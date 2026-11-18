@@ -82,14 +82,19 @@ export function createSession(onChange: () => void, onUnlock: (layer: Layer) => 
 
   source.onMessage((msg: Message) => {
     if (msg.type === 'status') {
-      state.error = msg.state === 'error' ? msg.message : '';
+      // Keep an error visible through the camera_off that follows it; clear it once the camera is back.
+      if (msg.state === 'error') state.error = msg.message;
+      else if (msg.state === 'camera_on') state.error = '';
+      // camera_on doesn't mean a face was found; face presence comes from metrics.faceDetected.
       if (msg.state === 'no_face' || msg.state === 'error') setFace(false);
-      if (msg.state === 'camera_on') setFace(true);
     } else {
       onMetrics(msg);
     }
     if (state.screen === 'tuning' && ready() && autoStart === undefined) {
-      autoStart = setTimeout(() => { if (state.screen === 'tuning') startPlaying(); }, AUTO_START_MS);
+      autoStart = setTimeout(() => {
+        if (state.screen === 'tuning' && ready()) startPlaying();
+        else autoStart = undefined; // lost the lock during the wait; re-arm on the next ready message
+      }, AUTO_START_MS);
     }
     onChange();
   });
@@ -122,9 +127,16 @@ export function createSession(onChange: () => void, onUnlock: (layer: Layer) => 
 
   function startPlaying() {
     resetRun();
-    const bpm = state.tempo ?? 72;
-    audio(() => engine.start(bpm));
+    audio(() => engine.start(state.tempo ?? 72)); // read tempo when the queued start runs, not now
     go('playing');
+  }
+
+  /** Forget the previous camera session's readings (tempo is kept on purpose). */
+  function resetSignals() {
+    state.metrics = null;
+    state.error = '';
+    setFace(false);
+    noFaceSince = null;
   }
 
   return {
@@ -135,9 +147,7 @@ export function createSession(onChange: () => void, onUnlock: (layer: Layer) => 
       void engine.prime();
       pulse.reset();
       state.tempo = null;
-      state.metrics = null;
-      state.error = '';
-      setFace(false);
+      resetSignals();
       source.start();
       go('tuning');
     },
@@ -150,6 +160,7 @@ export function createSession(onChange: () => void, onUnlock: (layer: Layer) => 
     },
 
     playAgain() {
+      resetSignals();
       source.start();
       startPlaying();
     },

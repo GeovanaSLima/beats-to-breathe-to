@@ -7,7 +7,7 @@ import '@fontsource/vt323/400.css';
 import './styles.css';
 import { startTheme } from './theme.ts';
 import { createSession, type Screen } from './session.ts';
-import { LAYERS } from './audio/engine.ts';
+import { LAYERS, type Layer } from './audio/engine.ts';
 import { spinVinyl, placeNeedle, confetti } from './scene.ts';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -50,10 +50,15 @@ function renderTuning() {
   const checks = [state.faceDetected, !!m?.pulseStable, !!m?.breathingStable];
   const firstPending = checks.indexOf(false);
   ['step-face', 'step-pulse', 'step-breathing'].forEach((id, i) => {
-    $(id).className = checks[i] ? 'done' : i === firstPending ? 'active' : '';
+    const step = checks[i] ? 'done' : i === firstPending ? 'active' : '';
+    const li = $(id);
+    if (li.className === step) return; // unchanged: don't make the live region re-announce
+    li.className = step;
+    li.querySelector('.sr-only')!.textContent = step === 'done' ? ', done' : step === 'active' ? ', checking' : ', waiting';
   });
   placeNeedle($('needle'), m?.pulseStable ? state.tempo : null);
-  $('tuning-msg').textContent = state.error;
+  const msg = $('tuning-msg');
+  if (msg.textContent !== state.error) msg.textContent = state.error;
   $('start-playing').hidden = firstPending !== -1 || state.tempo === null;
 }
 
@@ -64,12 +69,13 @@ function renderPlaying() {
 
   $('radio-display').classList.toggle('dim', state.away);
   $('away-msg').hidden = !state.away;
+  $('away-msg').textContent = state.error || "Can't see you, come back to the camera ✦";
   $('freq-note').hidden = state.away;
 
   const count = state.unlocked.length;
   bind('tapeCount', `${count}/4`);
   document.querySelectorAll<HTMLElement>('.tape').forEach((el) => {
-    const on = state.unlocked.includes(el.dataset.layer as typeof LAYERS[number]);
+    const on = state.unlocked.includes(el.dataset.layer as Layer);
     el.classList.toggle('on', on);
     el.setAttribute('aria-label', `${el.dataset.layer} tape, ${on ? 'playing' : 'locked'}`);
   });
@@ -97,7 +103,8 @@ function enterScreen(screen: Screen) {
     bind('avgBpm', String(avgBpm));
     bind('avgBreathing', avgBreathing === null ? '–' : String(avgBreathing));
     bind('tapesUnlocked', `${tapes}/4`);
-    document.querySelector('.cassette')!.setAttribute('aria-label', `Cassette tape labeled ${document.querySelector('[data-copy="tapeName"]')!.textContent} · ${avgBpm} FM`);
+    const tapeName = document.querySelector('[data-copy="tapeName"]')!.textContent;
+    document.querySelector('.cassette')!.setAttribute('aria-label', `Cassette tape labeled ${tapeName} · ${avgBpm} FM`);
   }
 }
 
@@ -105,8 +112,10 @@ function enterScreen(screen: Screen) {
 async function startPreview() {
   if (state.simulated) return;
   try {
-    preview.srcObject = await navigator.mediaDevices.getUserMedia({ video: true });
-    if (state.screen !== 'tuning') return stopPreview(); // left the screen while the prompt was open
+    const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+    stopPreview(); // an overlapping earlier request may have attached a stream; never orphan one
+    if (state.screen !== 'tuning') return stream.getTracks().forEach((t) => t.stop()); // left while the prompt was open
+    preview.srcObject = stream;
     preview.hidden = false;
     await preview.play();
   } catch {

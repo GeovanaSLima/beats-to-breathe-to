@@ -86,7 +86,7 @@
       </div>
       <svg class="tonearm" viewBox="0 0 60 170">
         <circle cx="40" cy="16" r="12" fill="#CFC6E8"></circle>
-        <path class="arm" stroke="#CFC6E8" stroke-width="5" fill="none" stroke-linecap="round"></path>
+        <path class="arm" d="M40 16 L46 110 L50 130" stroke="#CFC6E8" stroke-width="5" fill="none" stroke-linecap="round"></path>
       </svg>
     </div>
   </div>
@@ -191,9 +191,9 @@
       </figure>
       <div>
         <ul class="checklist" aria-live="polite">
-          <li id="step-face"><span class="state-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1E1A36" stroke-width="3" stroke-linecap="round" aria-hidden="true"><path d="M5 12l5 5 9-10"></path></svg></span><span>Face found</span></li>
-          <li id="step-pulse"><span class="state-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1E1A36" stroke-width="3" stroke-linecap="round" aria-hidden="true"><path d="M5 12l5 5 9-10"></path></svg></span><span>Reading your pulse</span></li>
-          <li id="step-breathing"><span class="state-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1E1A36" stroke-width="3" stroke-linecap="round" aria-hidden="true"><path d="M5 12l5 5 9-10"></path></svg></span><span>Reading your breathing</span></li>
+          <li id="step-face"><span class="state-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1E1A36" stroke-width="3" stroke-linecap="round" aria-hidden="true"><path d="M5 12l5 5 9-10"></path></svg></span><span>Face found<span class="sr-only">, waiting</span></span></li>
+          <li id="step-pulse"><span class="state-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1E1A36" stroke-width="3" stroke-linecap="round" aria-hidden="true"><path d="M5 12l5 5 9-10"></path></svg></span><span>Reading your pulse<span class="sr-only">, waiting</span></span></li>
+          <li id="step-breathing"><span class="state-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1E1A36" stroke-width="3" stroke-linecap="round" aria-hidden="true"><path d="M5 12l5 5 9-10"></path></svg></span><span>Reading your breathing<span class="sr-only">, waiting</span></span></li>
         </ul>
         <p class="tuning-msg" id="tuning-msg" role="status"></p>
         <button type="button" class="btn-pink" id="start-playing" hidden>Found your rhythm · start ▸</button>
@@ -231,7 +231,7 @@
           <h2 id="tapes-title">Tapes on air</h2>
           <span class="tapes-count vt" data-bind="tapeCount">0/4</span>
         </div>
-        <ul class="tape-grid" id="tape-grid">
+        <ul class="tape-grid">
           <li class="tape" data-layer="rain" style="--c: #8FB8DE; --glow: rgba(143,184,222,.35)"><div class="tape-label hand"><svg class="lock" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg>rain</div><div class="reels" aria-hidden="true"><i></i><i></i></div></li>
           <li class="tape" data-layer="piano" style="--c: #F4B860; --glow: rgba(244,184,96,.35)"><div class="tape-label hand"><svg class="lock" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg>piano</div><div class="reels" aria-hidden="true"><i></i><i></i></div></li>
           <li class="tape" data-layer="bass" style="--c: #F2A7A0; --glow: rgba(242,167,160,.35)"><div class="tape-label hand"><svg class="lock" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg>bass</div><div class="reels" aria-hidden="true"><i></i><i></i></div></li>
@@ -254,7 +254,7 @@
 
   <!-- 4 · Your tape -->
   <section class="screen" id="tape" aria-labelledby="tape-title" tabindex="-1" hidden>
-    <div class="cassette" role="img" data-bind-label="cassette">
+    <div class="cassette" role="img">
       <span class="screw" style="left: 12px; top: 12px"></span><span class="screw" style="right: 12px; top: 12px"></span>
       <span class="screw" style="left: 12px; bottom: 12px"></span><span class="screw" style="right: 12px; bottom: 12px"></span>
       <div class="cassette-label">
