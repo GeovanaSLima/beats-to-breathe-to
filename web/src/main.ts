@@ -21,6 +21,8 @@ const tuneIn = $<HTMLButtonElement>('tune-in');
 const previews = [$<HTMLVideoElement>('preview'), $<HTMLVideoElement>('preview-playing')];
 const clipVideo = $<HTMLVideoElement>('clip-video');
 const camPolaroid = document.querySelector<HTMLElement>('.cam-polaroid')!; // shown only once a stream is attached
+// `?hidecam=1` keeps the camera image off screen (e.g. for a demo video); the bridge still reads the signals.
+const hideCam = new URLSearchParams(location.search).get('hidecam') === '1';
 const recordBtn = $<HTMLButtonElement>('record');
 const download = $<HTMLAnchorElement>('download');
 const LAYER_COLORS: Record<Layer, string> = { rain: '#8FB8DE', piano: '#F4B860', bass: '#F2A7A0', melody: '#A8D5A2' };
@@ -127,7 +129,7 @@ function enterScreen(screen: Screen) {
 const wantsPreview = () => state.screen === 'tuning' || state.screen === 'playing';
 
 async function startPreview() {
-  if (state.simulated || previewStream) return; // tuning → playing keeps the same stream
+  if (state.simulated || hideCam || previewStream) return; // tuning → playing keeps the same stream
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ video: true });
     // Left while the prompt was open, or an overlapping request already attached one: never orphan a stream.

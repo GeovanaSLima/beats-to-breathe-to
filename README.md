@@ -4,6 +4,14 @@ A lo-fi radio that plays at your heart rate. Your webcam reads your pulse and br
 
 > This is a musical instrument, not a health tool.
 
+## Screenshots
+
+| Consent | Tuning in |
+|---|---|
+| ![Welcome screen with the consent note](docs/screenshots/welcome.png) | ![Tuning screen reading face, pulse and breathing](docs/screenshots/tuning.png) |
+| **Now playing** | **Your tape** |
+| ![Now playing: the station frequency is your heartbeat](docs/screenshots/playing.png) | ![Your tape card with the clip player](docs/screenshots/tape.png) |
+
 ## How it works
 
 | Your signal | What it changes in the music |
@@ -78,7 +86,7 @@ cd web && npm install && npm run sim
 
 This opens http://localhost:5173/?sim=1 (or set `VITE_SIGNAL_SOURCE=sim`). Fake signals wander around a calm pulse and breathing rate, and a red **SIMULATED** badge stays on screen. Clips made in this mode carry a SIMULATED label too.
 
-Handy for demos: `?time=day` or `?time=night` overrides the clock-based theme.
+Handy for demos: `?time=day` or `?time=night` overrides the clock-based theme, and `?hidecam=1` keeps your camera image off screen (the polaroids show a placeholder) while the bridge still reads your signals live.
 
 ### Tests
 
