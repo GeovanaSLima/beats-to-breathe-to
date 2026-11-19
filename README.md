@@ -27,14 +27,9 @@ The music only starts once your face, pulse and breathing are all being read, an
 
 ## Architecture
 
-```
-[Webcam] → [bridge/: Node + SmartSpectra SDK]
-                 │  JSON metrics, about once a second
-                 ▼
-          WebSocket ws://localhost:8787 (localhost only)
-                 ▼
-[web/: Vite + TypeScript · Tone.js audio · DOM/CSS scene · canvas + MediaRecorder clip]
-```
+![Architecture: the webcam feeds the local bridge (SmartSpectra SDK, metrics, WebSocket on 127.0.0.1:8787), which sends JSON about once a second to the browser app (signals, session, Tone.js audio, clip) and on to the speakers; only numbers go to the Presage cloud](docs/diagram/architecture.svg)
+
+<sub>Drawn with Excalidraw: open [`docs/diagram/architecture.excalidraw`](docs/diagram/architecture.excalidraw) at [excalidraw.com](https://excalidraw.com) to edit it.</sub>
 
 There is no browser version of the SDK, so a small local **bridge** runs the [Node SDK](https://www.npmjs.com/package/@smartspectra/node-sdk), owns the camera and sends numbers to the web app. The web app never sends the camera anywhere; it only opens it for the "live camera" polaroid while tuning in and playing. If the SDK asks you to adjust ("Place more of the chest in view."), that tip shows under the polaroid.
 
@@ -62,28 +57,45 @@ cp .env.example .env    # then paste your key after PRESAGE_API_KEY=
 
 The key lives only in `.env`, which git ignores. The SDK's licensed runtime files come from npm into `node_modules/` and are never committed.
 
-### Run it live
+### Run it live (one command)
 
-Terminal 1, the bridge:
+Install everything once, then start both parts from the project folder:
+
+```bash
+npm run setup
+```
+
+```bash
+npm start
+```
+
+This runs the bridge and the web app together in one terminal, with their output labelled `[bridge]` and `[web]`. Open http://localhost:5173, tick the consent box and press **Turn on camera & tune in**. Sit back so your face, shoulders and chest are in view, in good, even light, and stay still. Pulse usually locks in about 10 s; breathing often takes 30–60 s.
+
+Press **Ctrl+C** to stop: it stops both parts and the camera turns off. If one part exits, the other is stopped too.
+
+The first time, macOS asks for camera access **for your terminal app** (Terminal, iTerm, VS Code…), because the bridge is a Node process started from it. Allow it in System Settings → Privacy & Security → Camera if you missed the prompt. The bridge's debug page at http://localhost:8787 shows the raw numbers.
+
+<details>
+<summary>Or run the two parts in separate terminals</summary>
 
 ```bash
 cd bridge && npm install && npm start
 ```
 
-You should see `bridge listening on ws://localhost:8787`. Its debug page at http://localhost:8787 shows the raw numbers. The first time, macOS asks for camera access **for your terminal app** (Terminal, iTerm, VS Code…), because the bridge is a Node process started from it. Allow it in System Settings → Privacy & Security → Camera if you missed the prompt.
-
-Terminal 2, the web app:
-
 ```bash
 cd web && npm install && npm run dev
 ```
 
-Open http://localhost:5173, tick the consent box and press **Turn on camera & tune in**. Sit back so your face, shoulders and chest are in view, in good, even light, and stay still. Pulse usually locks in about 10 s; breathing often takes 30–60 s.
+</details>
 
 ### Run it with the simulator (no camera, no key)
 
 ```bash
-cd web && npm install && npm run sim
+npm run setup
+```
+
+```bash
+npm run sim
 ```
 
 This opens http://localhost:5173/?sim=1 (or set `VITE_SIGNAL_SOURCE=sim`). Fake signals wander around a calm pulse and breathing rate, and an amber **SIMULATED** badge stays on screen. Clips made in this mode carry a SIMULATED label too.
