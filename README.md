@@ -86,7 +86,7 @@ cd web && npm install && npm run sim
 
 This opens http://localhost:5173/?sim=1 (or set `VITE_SIGNAL_SOURCE=sim`). Fake signals wander around a calm pulse and breathing rate, and a red **SIMULATED** badge stays on screen. Clips made in this mode carry a SIMULATED label too.
 
-Handy for demos: `?time=day` or `?time=night` overrides the clock-based theme, and `?hidecam=1` keeps your camera image off screen (the tuning polaroid shows a placeholder, the playing one stays hidden) while the bridge still reads your signals live. For a demo video, `?recordaudio=1` also saves the session's music as `beats-to-breathe-to-session.wav` when you press Finish: it's the engine's own mix captured digitally (the same live-driven audio, recorded as 256 kbps Opus and converted to WAV on Finish), to line up with a screen recording in your editor. It is saved only with that parameter, and dropped if you press Turn off. It's held in memory until then; the .wav is about 11 MB per minute.
+Handy for demos: `?time=day` or `?time=night` overrides the clock-based theme, and `?hidecam=1` keeps your camera image off screen (the tuning polaroid shows a placeholder, the playing one stays hidden) while the bridge still reads your signals live.
 
 ### Tests
 

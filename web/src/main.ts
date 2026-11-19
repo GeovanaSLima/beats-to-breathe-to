@@ -10,7 +10,6 @@ import { createSession, type Screen } from './session.ts';
 import { LAYERS, type Layer } from './audio/engine.ts';
 import { spinVinyl, placeNeedle, confetti } from './scene.ts';
 import { recordClip, canRecord, type Clip } from './record.ts';
-import { recordWav } from './wav.ts';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 // Writes only changed text, so live regions don't re-announce on every render.
@@ -22,11 +21,8 @@ const tuneIn = $<HTMLButtonElement>('tune-in');
 const previews = [$<HTMLVideoElement>('preview'), $<HTMLVideoElement>('preview-playing')];
 const clipVideo = $<HTMLVideoElement>('clip-video');
 const camPolaroid = document.querySelector<HTMLElement>('.cam-polaroid')!; // shown only once a stream is attached
-const params = new URLSearchParams(location.search);
 // `?hidecam=1` keeps the camera image off screen (e.g. for a demo video); the bridge still reads the signals.
-const hideCam = params.get('hidecam') === '1';
-// `?recordaudio=1` saves the session's music as a .wav on Finish, for video editing.
-const recordAudio = params.get('recordaudio') === '1';
+const hideCam = new URLSearchParams(location.search).get('hidecam') === '1';
 const recordBtn = $<HTMLButtonElement>('record');
 const download = $<HTMLAnchorElement>('download');
 const LAYER_COLORS: Record<Layer, string> = { rain: '#8FB8DE', piano: '#F4B860', bass: '#F2A7A0', melody: '#A8D5A2' };
@@ -45,8 +41,6 @@ spinVinyl($('vinyl'), () => (state.screen === 'playing' ? state.tempo ?? 72 : nu
 
 let shown: Screen | null = null;
 let previewStream: MediaStream | null = null;
-let wav: ReturnType<typeof recordWav> | null = null;
-let wavError = ''; // why session audio couldn't start, shown on the tape screen
 let recording: ReturnType<typeof recordClip> | null = null;
 let clip: Clip | null = null;
 
@@ -119,11 +113,6 @@ function enterScreen(screen: Screen) {
   if (wantsPreview()) void startPreview(); else stopPreview();
   if (screen !== 'playing') recording?.stop(); // finish or turn off ends a recording early
   if (screen === 'tape') showClip(); else discardClip(); // the clip lives only until you leave the tape screen
-  if (recordAudio && screen === 'playing' && !wav) {
-    try { wav = recordWav(session.audioStream()); wavError = ''; } catch (e) { wavError = String(e); console.error('session audio not recorded', e); }
-  }
-  if (wav && screen !== 'playing') { void saveWav(wav, screen === 'tape'); wav = null; } // saved on Finish, dropped on Turn off
-  else if (recordAudio && screen === 'tape' && wavError) noteWav(`Session audio couldn't be recorded: ${wavError}`);
   if (screen === 'welcome') { consent.checked = false; tuneIn.disabled = true; }
   if (screen === 'tape') {
     const { avgBpm, avgBreathing, tapes } = session.summary();
@@ -178,30 +167,6 @@ function startRecording() {
     $('unlock-announce').textContent = 'Clip ready, download it from your tape';
     if (state.screen === 'tape') showClip();
   });
-}
-
-async function saveWav(rec: ReturnType<typeof recordWav>, keep: boolean) {
-  if (keep) await new Promise((r) => setTimeout(r, 1700)); // let the music's 1.5 s fade-out finish in the file
-  try {
-    const blob = await rec.stop(keep);
-    if (!blob) return;
-    const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: 'beats-to-breathe-to-session.wav' });
-    document.body.append(a); // some browsers ignore clicks on detached links
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(a.href), 10_000); // give the download time to start
-    noteWav(`Session audio saved as beats-to-breathe-to-session.wav (${(blob.size / 1e6).toFixed(1)} MB).`);
-  } catch (e) {
-    console.error('session audio not saved', e);
-    if (keep) noteWav(`Session audio couldn't be saved: ${e instanceof Error ? e.message : e}`);
-  }
-}
-
-/** A short-lived note on the tape screen, so a missing .wav is never a silent failure. */
-function noteWav(text: string) {
-  const note = $('wav-note');
-  note.textContent = text;
-  setTimeout(() => { if (note.textContent === text) note.textContent = ''; }, 6000);
 }
 
 function showClip() {
