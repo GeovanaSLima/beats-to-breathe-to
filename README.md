@@ -10,9 +10,11 @@ A lo-fi radio that plays at your heart rate. Your webcam reads your pulse and br
 |---|---|
 | ![Welcome screen with the consent note](docs/screenshots/welcome.png) | ![Tuning screen reading face, pulse and breathing](docs/screenshots/tuning.png) |
 | **Now playing** | **Your tape** |
-| ![Now playing: the station frequency is your heartbeat](docs/screenshots/playing.png) | ![Your tape card with the clip player](docs/screenshots/tape.png) |
+| ![Now playing: the station frequency is your heartbeat](docs/screenshots/playing.png) | ![Your tape card: average bpm, breaths per minute and tapes unlocked](docs/screenshots/tape.png) |
 
 ## How it works
+
+![How the radio responds to your signals: pulse sets the tempo, breathing rate shapes the sound, steady breathing unlocks tapes, HRV adds swing](docs/diagram/signals.png)
 
 | Your signal | What it changes in the music |
 |---|---|
