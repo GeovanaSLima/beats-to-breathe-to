@@ -88,15 +88,16 @@ async function start() {
     const { pulse, breathing, hrv } = samples;
     if (!pulse && !breathing && !hrv && !last) return;
     if (breathing?.stable) breathingStableAt = Date.now();
-    last = toMessage(samples, last, faceDetected);
+    // Only stable breathing values reach the app; unstable ones (often wild at 30–40% confidence) would read as noise.
+    last = toMessage(breathing?.stable ? samples : { ...samples, breathing: undefined }, last, faceDetected);
     // The app starts and keeps the music only while breathing is really being read.
     chestOutTicks = lastCode === ValidationCode.kChestNotVisible ? chestOutTicks + 1 : 0; // 2 in a row: ignore one-frame flickers
     last.breathingStable = Date.now() - breathingStableAt < BREATHING_HOLD_MS && chestOutTicks < 2;
     samples = {};
     console.log([
-      describe('pulse', 'bpm', last.pulse, last.pulseStable, pulse, pulse?.value),
-      describe('breathing', '/min', last.breathing, last.breathingStable, breathing, breathing?.value),
-      describe('hrv', 'ms', last.hrv, false, hrv, hrv?.rmssd),
+      describe('pulse', 'bpm', last.pulse, last.pulseStable ? ' ✓' : '', pulse, pulse?.value),
+      describe('breathing', '/min', last.breathing, breathing?.stable ? ' ✓' : last.breathingStable ? ' held' : '', breathing, breathing?.value),
+      describe('hrv', 'ms', last.hrv, '', hrv, hrv?.rmssd),
       `face ${last.faceDetected ? 'yes' : 'no'}`,
     ].join(' · '));
     send(last);
@@ -118,10 +119,10 @@ async function stop() {
 
 const fmt = (v) => (v == null ? '…' : v.toFixed(1));
 
-// Terminal line for one signal; while the contract still sends null, show the raw unstable SDK value.
-function describe(label, unit, shown, stable, sample, rawValue) {
-  const raw = shown == null && rawValue != null ? ` (raw ${rawValue.toFixed(1)}, ${Math.round(sample.confidence ?? 0)}%)` : '';
-  return `${label} ${fmt(shown)} ${unit}${stable ? ' ✓' : ''}${raw}`;
+// Terminal line for one signal: the value sent to the app, a mark (✓ stable now, "held" for breathing), and any unsent raw sample.
+function describe(label, unit, shown, mark, sample, rawValue) {
+  const raw = rawValue != null && rawValue !== shown ? ` (raw ${rawValue.toFixed(1)}, ${Math.round(sample.confidence ?? 0)}%)` : '';
+  return `${label} ${fmt(shown)} ${unit}${mark}${raw}`;
 }
 
 // Plain HTTP only serves the debug page; the app talks over the WebSocket.
