@@ -76,7 +76,7 @@ Terminal 2, the web app:
 cd web && npm install && npm run dev
 ```
 
-Open http://localhost:5173, tick the consent box and press **Turn on camera & tune in**. Sit facing the camera in good, even light. Pulse usually locks in about 10 s; breathing can take 20 s or more.
+Open http://localhost:5173, tick the consent box and press **Turn on camera & tune in**. Sit back so your face, shoulders and chest are in view, in good, even light, and stay still. Pulse usually locks in about 10 s; breathing often takes 30–60 s.
 
 ### Run it with the simulator (no camera, no key)
 
@@ -104,7 +104,7 @@ cd web && npm test
 ## Known limitations
 
 - **Light and movement matter.** Low or uneven light, strong backlight, or moving around a lot makes the SDK's readings slower to settle or drop out.
-- **Warm-up delay.** The SDK needs time to report stable values: about 10 s for pulse and 20 s or more for breathing.
+- **Warm-up delay.** The SDK needs time to report stable values: about 10 s for pulse and often 30–60 s for breathing. After that it flags breathing stable only every 10–25 s, so the bridge treats one stable reading as valid for 30 s (or until your chest leaves the frame).
 - **Tempo lags a little on purpose.** Smoothing and the 3 s glide keep the music from jumping, so a pulse change shows up in the tempo after a few seconds.
 - **Clip duration metadata.** Chrome writes webm files without a duration, so some players show no seek bar until the clip has played once. The clip itself is complete.
 - **Clip recording needs the tab visible.** Browsers pause drawing in hidden tabs, so the clip's picture freezes if you switch away while recording.

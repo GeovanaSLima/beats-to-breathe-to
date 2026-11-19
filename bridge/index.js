@@ -10,7 +10,9 @@ import { decodeMetrics } from '@smartspectra/node-sdk/messages';
 import { collect, toMessage } from './metrics.js';
 
 const PORT = 8787;
-const BREATHING_STALE_MS = 3000; // no fresh breathing sample this long → it no longer counts as read
+// The SDK sends breathing every 3–8 s and flags a sample stable only every 10–25 s (seen live), so one stable
+// sample keeps breathing "read" this long. Without it the music would keep dropping between stable samples.
+const BREATHING_HOLD_MS = 30000;
 const apiKey = process.env.PRESAGE_API_KEY;
 if (!apiKey) {
   console.error('PRESAGE_API_KEY is missing. Copy .env.example to .env and add your key.');
@@ -76,7 +78,7 @@ async function start() {
     await stop();
     return;
   }
-  let breathingAt = 0;
+  let breathingStableAt = 0;
   let chestOutTicks = 0; // ticks in a row with the chest out of view
   tick = setInterval(() => {
     // Send face + tip only once they've held for two ticks, so a tip flickering between frames doesn't flicker on screen.
@@ -85,11 +87,11 @@ async function start() {
     candidate = view;
     const { pulse, breathing, hrv } = samples;
     if (!pulse && !breathing && !hrv && !last) return;
-    if (breathing) breathingAt = Date.now();
+    if (breathing?.stable) breathingStableAt = Date.now();
     last = toMessage(samples, last, faceDetected);
     // The app starts and keeps the music only while breathing is really being read.
     chestOutTicks = lastCode === ValidationCode.kChestNotVisible ? chestOutTicks + 1 : 0; // 2 in a row: ignore one-frame flickers
-    if (Date.now() - breathingAt > BREATHING_STALE_MS || chestOutTicks >= 2) last.breathingStable = false;
+    last.breathingStable = Date.now() - breathingStableAt < BREATHING_HOLD_MS && chestOutTicks < 2;
     samples = {};
     console.log([
       describe('pulse', 'bpm', last.pulse, last.pulseStable, pulse, pulse?.value),
