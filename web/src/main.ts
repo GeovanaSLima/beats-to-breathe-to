@@ -81,7 +81,8 @@ function renderPlaying() {
 
   $('radio-display').classList.toggle('dim', state.away);
   $('away-msg').hidden = !state.away;
-  $('away-msg').textContent = state.error || "Can't see you, come back to the camera ✦";
+  $('away-msg').textContent = state.error
+    || (state.faceDetected ? 'Lost your breathing, settle back so your chest is in view ✦' : "Can't see you, come back to the camera ✦");
   $('freq-note').hidden = state.away;
 
   const count = state.unlocked.length;
@@ -181,9 +182,6 @@ function discardClip() {
   clipVideo.load(); // drop the decoded clip
 }
 
-// The clip has its own audio: mute the tape while it plays. Guarded so leaving the screen can't bring the tape back.
-clipVideo.onplay = () => { if (state.screen === 'tape') session.duckForClip(true); };
-clipVideo.onpause = () => { if (state.screen === 'tape') session.duckForClip(false); };
 // Chrome's webm has no duration, so the seek bar is broken until the end; seeking far makes it compute one.
 clipVideo.onloadedmetadata = () => {
   if (clipVideo.duration !== Infinity) return;
@@ -197,7 +195,7 @@ tuneIn.onclick = () => { if (consent.checked) session.tuneIn(); };
 $('start-playing').onclick = () => session.startPlaying();
 $('turn-off').onclick = () => session.turnOff();
 $('finish').onclick = () => session.finish();
-$('play-again').onclick = () => session.playAgain();
+$('play-again').onclick = () => session.tuneIn(); // play again waits for a fresh reading too
 $('back-to-start').onclick = () => session.backToStart();
 
 render();

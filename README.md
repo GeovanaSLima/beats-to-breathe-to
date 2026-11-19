@@ -1,6 +1,6 @@
 # beats to breathe to
 
-A lo-fi radio that plays at your heart rate. Your webcam reads your pulse and breathing with the [Presage SmartSpectra SDK](https://smartspectra.presagetech.com/), and the music follows: your heartbeat sets the tempo, your breathing shapes the sound, and calm, steady breathing unlocks new cassette tapes (rain → piano → bass → melody). Every session ends as a tape only you could have played: it keeps playing softly on the final screen, and you can watch and download a 15 s clip of it.
+A lo-fi radio that plays at your heart rate. Your webcam reads your pulse and breathing with the [Presage SmartSpectra SDK](https://smartspectra.presagetech.com/), and the music follows: your heartbeat sets the tempo, your breathing shapes the sound, and calm, steady breathing unlocks new cassette tapes (rain → piano → bass → melody). Every session ends as a tape only you could have played, with a 15 s clip you can watch and download.
 
 > This is a musical instrument, not a health tool.
 
@@ -13,7 +13,7 @@ A lo-fi radio that plays at your heart rate. Your webcam reads your pulse and br
 | **Breathing steadiness** | Unlocks tapes. Staying within ±2/min of your recent median for 20 s unlocks the next layer. Unsteady moments slow the counter down instead of resetting it. |
 | **HRV** (RMSSD) | A little swing in the groove (more variability, more swing, up to 0.15). |
 
-A drum loop with vinyl crackle plays the whole time. If the camera loses your face for 5 s, the tempo holds and the radio dims until you're back.
+The music only starts once your face, pulse and breathing are all being read, and a drum loop with vinyl crackle plays the whole time. If the camera loses your face or your breathing for 5 s, the music turns down, the tempo holds and the radio dims until you're back.
 
 ## Architecture
 

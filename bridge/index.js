@@ -10,6 +10,7 @@ import { decodeMetrics } from '@smartspectra/node-sdk/messages';
 import { collect, toMessage } from './metrics.js';
 
 const PORT = 8787;
+const BREATHING_STALE_MS = 3000; // no fresh breathing sample this long → it no longer counts as read
 const apiKey = process.env.PRESAGE_API_KEY;
 if (!apiKey) {
   console.error('PRESAGE_API_KEY is missing. Copy .env.example to .env and add your key.');
@@ -75,6 +76,7 @@ async function start() {
     await stop();
     return;
   }
+  let breathingAt = 0;
   tick = setInterval(() => {
     // Send face + tip only once they've held for two ticks, so a tip flickering between frames doesn't flicker on screen.
     const view = `${faceDetected}|${hint}`;
@@ -82,7 +84,10 @@ async function start() {
     candidate = view;
     const { pulse, breathing, hrv } = samples;
     if (!pulse && !breathing && !hrv && !last) return;
+    if (breathing) breathingAt = Date.now();
     last = toMessage(samples, last, faceDetected);
+    // The app starts and keeps the music only while breathing is really being read.
+    if (Date.now() - breathingAt > BREATHING_STALE_MS || lastCode === ValidationCode.kChestNotVisible) last.breathingStable = false;
     samples = {};
     console.log([
       describe('pulse', 'bpm', last.pulse, last.pulseStable, pulse, pulse?.value),

@@ -9,9 +9,9 @@ import { hrvToSwing } from './audio/mapping.ts';
 
 export type Screen = 'welcome' | 'tuning' | 'playing' | 'tape';
 
-const AWAY_AFTER_MS = 5000;   // no face this long while playing → hold tempo, dim the radio
+const AWAY_AFTER_MS = 5000;   // face or breathing unread this long while playing → turn down, dim the radio, wait
 const AUTO_START_MS = 1500;   // tuning → playing once all three checks pass
-const TAPE_VOLUME = 0.5;      // the tape screen plays your track softly
+const AWAY_VOLUME = 0.2;      // how far the music turns down while it waits for you
 
 export function createSession(onChange: () => void, onUnlock: (layer: Layer) => void) {
   const source = createSignalSource();
@@ -29,11 +29,11 @@ export function createSession(onChange: () => void, onUnlock: (layer: Layer) => 
     hint: '',                       // SDK framing tip, e.g. "Place more of the chest in view." 
     steadySeconds: 0,
     unlocked: [] as Layer[],
-    away: false,
+    away: false,                    // playing, but face or breathing hasn't been read for AWAY_AFTER_MS
     stats: { bpmSum: 0, bpmCount: 0, breathSum: 0, breathCount: 0 },
   };
 
-  let noFaceSince: number | null = null;
+  let lostSince: number | null = null; // when the face or the breathing reading was last lost
   let autoStart: ReturnType<typeof setTimeout> | undefined;
   // Audio start/stop take time (fades); queue them so a quick "play again" can't be cut by a pending stop.
   let audioQueue = Promise.resolve();
@@ -42,15 +42,16 @@ export function createSession(onChange: () => void, onUnlock: (layer: Layer) => 
   const ready = () =>
     !!state.metrics && state.faceDetected && state.metrics.pulseStable && state.metrics.breathingStable && state.tempo !== null;
 
-  function setFace(present: boolean) {
-    state.faceDetected = present;
-    if (present) noFaceSince = null;
-    else noFaceSince ??= Date.now();
+  /** The music only plays while the face is seen and breathing is being read. */
+  function setReading(face: boolean, breathing: boolean) {
+    state.faceDetected = face;
+    if (face && breathing) lostSince = null;
+    else lostSince ??= Date.now();
   }
 
   function onMetrics(m: Metrics) {
     state.metrics = m;
-    setFace(m.faceDetected);
+    setReading(m.faceDetected, m.breathingStable);
     // Without a face the bridge repeats stale values: hold the tempo and pause tape progress.
     if (!m.faceDetected) return;
 
@@ -61,15 +62,16 @@ export function createSession(onChange: () => void, onUnlock: (layer: Layer) => 
         if (state.screen === 'playing') engine.setTempo(target);
       }
     }
-    if (m.breathing !== null) engine.setBreathing(m.breathing);
+    const breathing = m.breathingStable ? m.breathing : null; // unread breathing shapes nothing
+    if (breathing !== null) engine.setBreathing(breathing);
     if (m.hrv !== null) engine.setSwing(hrvToSwing(m.hrv));
 
     if (state.screen !== 'playing') return;
     if (m.pulse !== null) { state.stats.bpmSum += m.pulse; state.stats.bpmCount++; }
-    if (m.breathing !== null) {
-      state.stats.breathSum += m.breathing;
+    if (breathing !== null) {
+      state.stats.breathSum += breathing;
       state.stats.breathCount++;
-      if (state.unlocked.length < LAYERS.length && steady.push(m.breathing, 1)) unlockNext();
+      if (state.unlocked.length < LAYERS.length && steady.push(breathing, 1)) unlockNext();
       state.steadySeconds = steady.progress;
     }
   }
@@ -89,7 +91,7 @@ export function createSession(onChange: () => void, onUnlock: (layer: Layer) => 
       else if (msg.state === 'camera_on') state.error = '';
       state.hint = msg.state === 'camera_on' || msg.state === 'no_face' ? msg.message : '';
       // camera_on doesn't mean a face was found; face presence comes from metrics.faceDetected.
-      if (msg.state === 'no_face' || msg.state === 'error') setFace(false);
+      if (msg.state === 'no_face' || msg.state === 'error') setReading(false, false);
     } else {
       onMetrics(msg);
     }
@@ -104,8 +106,12 @@ export function createSession(onChange: () => void, onUnlock: (layer: Layer) => 
 
   // Re-check "away" every second: messages may stop entirely if the bridge goes quiet.
   setInterval(() => {
-    const away = state.screen === 'playing' && noFaceSince !== null && Date.now() - noFaceSince > AWAY_AFTER_MS;
-    if (away !== state.away) { state.away = away; onChange(); }
+    if (state.screen !== 'playing') return; // leaving playing resets `away` and stops the music itself
+    const away = lostSince !== null && Date.now() - lostSince > AWAY_AFTER_MS;
+    if (away === state.away) return;
+    state.away = away;
+    audio(async () => engine.setVolume(away ? AWAY_VOLUME : 1));
+    onChange();
   }, 1000);
 
   function go(screen: Screen) {
@@ -139,14 +145,14 @@ export function createSession(onChange: () => void, onUnlock: (layer: Layer) => 
     state.metrics = null;
     state.error = '';
     state.hint = '';
-    setFace(false);
-    noFaceSince = null;
+    state.faceDetected = false;
+    lostSince = null;
   }
 
   return {
     state,
 
-    /** From the consent click: unlock audio inside the gesture, then turn the camera on. */
+    /** From the consent click or Play again: unlock audio inside the gesture, turn the camera on, wait for a full reading. */
     tuneIn() {
       void engine.prime();
       pulse.reset();
@@ -160,18 +166,9 @@ export function createSession(onChange: () => void, onUnlock: (layer: Layer) => 
 
     audioStream: () => engine.audioStream(),
 
-    /** Camera off; your track keeps playing softly on the tape screen until you leave it. */
     finish() {
-      source.stop();
-      audio(async () => engine.setVolume(TAPE_VOLUME)); // queued: a pending start would ramp back to full
+      stopEverything();
       go('tape');
-    },
-
-    playAgain() {
-      audio(() => engine.stop());
-      resetSignals();
-      source.start();
-      startPlaying();
     },
 
     turnOff() {
@@ -180,13 +177,7 @@ export function createSession(onChange: () => void, onUnlock: (layer: Layer) => 
       go('welcome');
     },
 
-    backToStart() {
-      audio(() => engine.stop());
-      go('welcome');
-    },
-
-    /** Mute the tape while its clip plays (the clip has its own audio), restore after. */
-    duckForClip(playing: boolean) { audio(async () => engine.setVolume(playing ? 0 : TAPE_VOLUME)); },
+    backToStart() { go('welcome'); },
 
     summary() {
       const { bpmSum, bpmCount, breathSum, breathCount } = state.stats;

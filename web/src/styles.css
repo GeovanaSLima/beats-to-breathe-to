@@ -76,7 +76,7 @@ button, a { font: inherit; }
 .playing-only { display: none; }
 [data-screen="playing"] .playing-only { display: flex; }
 
-.bulb { position: absolute; width: 10px; height: 14px; border-radius: 50% 50% 45% 45%; background: #F4B860; box-shadow: 0 0 14px rgba(244,184,96,.8); animation: bulb 2.6s ease-in-out infinite; }
+.bulb { position: absolute; width: 8px; height: 10px; border-radius: 50% 50% 45% 45%; background: #F4B860; box-shadow: 0 0 10px rgba(244,184,96,.8); /* kept above the logo line */ animation: bulb 2.6s ease-in-out infinite; }
 .window { position: absolute; left: 5%; top: 12%; width: 30%; height: 58%; border: 14px solid #4A3B33; border-radius: 220px 220px 10px 10px; background: var(--sky); overflow: hidden; transition: background-color var(--fade); }
 .star { position: absolute; width: 4px; height: 4px; border-radius: 50%; background: #F6EBDD; animation: twinkle 3s ease-in-out infinite; display: var(--night-only); }
 .orb { position: absolute; right: 16%; top: 14%; width: 64px; height: 64px; border-radius: 50%; background: var(--orb); box-shadow: 0 0 40px var(--orb-glow); transition: background-color var(--fade), box-shadow var(--fade); }

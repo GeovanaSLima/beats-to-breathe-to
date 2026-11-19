@@ -128,7 +128,7 @@ export function createEngine() {
 
     setTempo(bpm: number) { transport.bpm.rampTo(bpm, 3); },
 
-    /** Overall level (1 = full); used to play the tape softly and to duck it under the clip. */
+    /** Overall level (1 = full); turned down while the face or breathing reading is lost. */
     setVolume(level: number) { master.gain.rampTo(level, 0.8); },
 
     setBreathing(rate: number) {
