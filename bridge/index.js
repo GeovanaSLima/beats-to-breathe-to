@@ -77,6 +77,7 @@ async function start() {
     return;
   }
   let breathingAt = 0;
+  let chestOutTicks = 0; // ticks in a row with the chest out of view
   tick = setInterval(() => {
     // Send face + tip only once they've held for two ticks, so a tip flickering between frames doesn't flicker on screen.
     const view = `${faceDetected}|${hint}`;
@@ -87,7 +88,8 @@ async function start() {
     if (breathing) breathingAt = Date.now();
     last = toMessage(samples, last, faceDetected);
     // The app starts and keeps the music only while breathing is really being read.
-    if (Date.now() - breathingAt > BREATHING_STALE_MS || lastCode === ValidationCode.kChestNotVisible) last.breathingStable = false;
+    chestOutTicks = lastCode === ValidationCode.kChestNotVisible ? chestOutTicks + 1 : 0; // 2 in a row: ignore one-frame flickers
+    if (Date.now() - breathingAt > BREATHING_STALE_MS || chestOutTicks >= 2) last.breathingStable = false;
     samples = {};
     console.log([
       describe('pulse', 'bpm', last.pulse, last.pulseStable, pulse, pulse?.value),

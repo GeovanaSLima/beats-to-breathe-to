@@ -51,7 +51,7 @@ function render() {
   bind('hint', state.hint);
   root.style.setProperty('--beat', `${(60 / tempo).toFixed(3)}s`);
   root.style.setProperty('--reel', `${(240 / tempo).toFixed(2)}s`);
-  if (m?.breathing) root.style.setProperty('--breath', `${(60 / m.breathing).toFixed(1)}s`);
+  if (m?.breathingStable && m.breathing) root.style.setProperty('--breath', `${(60 / m.breathing).toFixed(1)}s`);
 
   if (state.screen === 'tuning') renderTuning();
   if (state.screen === 'playing') renderPlaying();
@@ -77,12 +77,12 @@ function renderTuning() {
 function renderPlaying() {
   const m = state.metrics;
   bind('pulse', m?.pulse != null ? `${Math.round(m.pulse)} bpm` : 'Reading…');
-  bind('breathing', m?.breathing != null ? `${Math.round(m.breathing)}/min` : 'Reading…');
+  bind('breathing', m?.breathingStable && m.breathing != null ? `${Math.round(m.breathing)}/min` : 'Reading…');
 
   $('radio-display').classList.toggle('dim', state.away);
   $('away-msg').hidden = !state.away;
-  $('away-msg').textContent = state.error
-    || (state.faceDetected ? 'Lost your breathing, settle back so your chest is in view ✦' : "Can't see you, come back to the camera ✦");
+  bind('away', state.error
+    || (state.faceDetected ? 'Lost your breathing, settle back so your chest is in view ✦' : "Can't see you, come back to the camera ✦"));
   $('freq-note').hidden = state.away;
 
   const count = state.unlocked.length;

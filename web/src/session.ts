@@ -1,5 +1,5 @@
 // App state machine (HANDOFF §4.5) and the signal → audio loop. No DOM here; main.ts renders `state`.
-//   welcome → tuning → playing → tape → playing (play again) | welcome (back)
+//   welcome → tuning → playing → tape → tuning (play again) | welcome (back)
 //   "Turn off" from tuning/playing → welcome.
 import { createSignalSource } from './signals/source.ts';
 import type { Message, Metrics } from './signals/types.ts';
