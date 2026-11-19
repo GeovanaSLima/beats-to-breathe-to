@@ -88,8 +88,7 @@ function renderPlaying() {
 
   $('radio-display').classList.toggle('dim', state.away);
   $('away-msg').hidden = !state.away;
-  bind('away', state.error
-    || (state.faceDetected ? 'Lost your breathing, settle back so your chest is in view ✦' : "Can't see you, come back to the camera ✦"));
+  bind('away', state.error || "Can't see you, come back to the camera ✦");
   $('freq-note').hidden = state.away;
 
   const count = state.unlocked.length;

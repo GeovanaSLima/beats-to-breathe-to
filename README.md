@@ -21,7 +21,7 @@ A lo-fi radio that plays at your heart rate. Your webcam reads your pulse and br
 | **Breathing steadiness** | Unlocks tapes. Staying within ±2/min of your recent median for 20 s unlocks the next layer. Unsteady moments make the counter slip back slowly (half a second per unsteady second) instead of resetting it. |
 | **HRV** (RMSSD) | A little swing in the groove (more variability, more swing, up to 0.15). |
 
-The music only starts once your face, pulse and breathing are all being read, and a drum loop with vinyl crackle plays the whole time. If the camera loses your face or your breathing for 5 s, the music turns down and the radio dims until you're back (without a face, the tempo also holds).
+The music only starts once your face, pulse and breathing are all being read, and a drum loop with vinyl crackle plays the whole time. If the camera loses your face for 5 s, the music turns down, the tempo holds and the radio dims until you're back. If only the breathing reading drops mid-song (chest out of view, or the SDK re-confirming after you move), the music keeps playing: the breathing tile shows "Reading…" and tape progress pauses until it's back.
 
 ## Architecture
 

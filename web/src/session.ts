@@ -9,7 +9,7 @@ import { hrvToSwing } from './audio/mapping.ts';
 
 export type Screen = 'welcome' | 'tuning' | 'playing' | 'tape';
 
-const AWAY_AFTER_MS = 5000;   // face or breathing unread this long while playing → turn down, dim the radio, wait
+const AWAY_AFTER_MS = 5000;   // no face this long while playing → turn down, dim the radio, wait
 const AUTO_START_MS = 1500;   // tuning → playing once all three checks pass
 const AWAY_VOLUME = 0.2;      // how far the music turns down while it waits for you
 
@@ -29,11 +29,11 @@ export function createSession(onChange: () => void, onUnlock: (layer: Layer) => 
     hint: '',                       // SDK framing tip, e.g. "Place more of the chest in view." 
     steadySeconds: 0,
     unlocked: [] as Layer[],
-    away: false,                    // playing, but face or breathing hasn't been read for AWAY_AFTER_MS
+    away: false,                    // playing, but no face for AWAY_AFTER_MS
     stats: { bpmSum: 0, bpmCount: 0, breathSum: 0, breathCount: 0 },
   };
 
-  let lostSince: number | null = null; // when the face or the breathing reading was last lost
+  let lostSince: number | null = null; // when the face was last lost
   let autoStart: ReturnType<typeof setTimeout> | undefined;
   // Audio start/stop take time (fades); queue them so a quick "play again" can't be cut by a pending stop.
   let audioQueue = Promise.resolve();
@@ -42,16 +42,20 @@ export function createSession(onChange: () => void, onUnlock: (layer: Layer) => 
   const ready = () =>
     !!state.metrics && state.faceDetected && state.metrics.pulseStable && state.metrics.breathingStable && state.tempo !== null;
 
-  /** The music only plays while the face is seen and breathing is being read. */
-  function setReading(face: boolean, breathing: boolean) {
-    state.faceDetected = face;
-    if (face && breathing) lostSince = null;
+  /**
+   * Only a missing face turns the music down. A breathing reading that drops mid-song (chest out of view, or the
+   * SDK re-confirming after you move, which takes 30–60 s) just pauses breathing effects, so the music is back the
+   * moment you are, e.g. right after jumping jacks. Breathing is still required to start (see ready()).
+   */
+  function setFace(present: boolean) {
+    state.faceDetected = present;
+    if (present) lostSince = null;
     else lostSince ??= Date.now();
   }
 
   function onMetrics(m: Metrics) {
     state.metrics = m;
-    setReading(m.faceDetected, m.breathingStable);
+    setFace(m.faceDetected);
     // Without a face the bridge repeats stale values: hold the tempo and pause tape progress.
     if (!m.faceDetected) return;
 
@@ -91,7 +95,7 @@ export function createSession(onChange: () => void, onUnlock: (layer: Layer) => 
       else if (msg.state === 'camera_on') state.error = '';
       state.hint = msg.state === 'camera_on' || msg.state === 'no_face' ? msg.message : '';
       // camera_on doesn't mean a face was found; face presence comes from metrics.faceDetected.
-      if (msg.state === 'no_face' || msg.state === 'error') setReading(false, false);
+      if (msg.state === 'no_face' || msg.state === 'error') setFace(false);
     } else {
       onMetrics(msg);
     }
