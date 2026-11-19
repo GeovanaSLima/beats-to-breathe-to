@@ -46,6 +46,7 @@ spinVinyl($('vinyl'), () => (state.screen === 'playing' ? state.tempo ?? 72 : nu
 let shown: Screen | null = null;
 let previewStream: MediaStream | null = null;
 let wav: ReturnType<typeof recordWav> | null = null;
+let wavError = ''; // why session audio couldn't start, shown on the tape screen
 let recording: ReturnType<typeof recordClip> | null = null;
 let clip: Clip | null = null;
 
@@ -119,9 +120,10 @@ function enterScreen(screen: Screen) {
   if (screen !== 'playing') recording?.stop(); // finish or turn off ends a recording early
   if (screen === 'tape') showClip(); else discardClip(); // the clip lives only until you leave the tape screen
   if (recordAudio && screen === 'playing' && !wav) {
-    try { wav = recordWav(session.audioStream()); } catch (e) { console.error('session audio not recorded', e); }
+    try { wav = recordWav(session.audioStream()); wavError = ''; } catch (e) { wavError = String(e); console.error('session audio not recorded', e); }
   }
   if (wav && screen !== 'playing') { void saveWav(wav, screen === 'tape'); wav = null; } // saved on Finish, dropped on Turn off
+  else if (recordAudio && screen === 'tape' && wavError) noteWav(`Session audio couldn't be recorded: ${wavError}`);
   if (screen === 'welcome') { consent.checked = false; tuneIn.disabled = true; }
   if (screen === 'tape') {
     const { avgBpm, avgBreathing, tapes } = session.summary();
@@ -180,11 +182,26 @@ function startRecording() {
 
 async function saveWav(rec: ReturnType<typeof recordWav>, keep: boolean) {
   if (keep) await new Promise((r) => setTimeout(r, 1700)); // let the music's 1.5 s fade-out finish in the file
-  const blob = await rec.stop();
-  if (!keep || blob.size <= 44) return; // header only: nothing was captured
-  const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: 'beats-to-breathe-to-session.wav' });
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(a.href), 10_000); // give the download time to start
+  try {
+    const blob = await rec.stop();
+    if (!keep) return;
+    const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: 'beats-to-breathe-to-session.wav' });
+    document.body.append(a); // some browsers ignore clicks on detached links
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 10_000); // give the download time to start
+    noteWav(`Session audio saved as beats-to-breathe-to-session.wav (${Math.round(blob.size / 1e6)} MB).`);
+  } catch (e) {
+    console.error('session audio not saved', e);
+    if (keep) noteWav(`Session audio couldn't be saved: ${e instanceof Error ? e.message : e}`);
+  }
+}
+
+/** A short-lived note on the tape screen, so a missing .wav is never a silent failure. */
+function noteWav(text: string) {
+  const note = $('wav-note');
+  note.textContent = text;
+  setTimeout(() => { if (note.textContent === text) note.textContent = ''; }, 6000);
 }
 
 function showClip() {

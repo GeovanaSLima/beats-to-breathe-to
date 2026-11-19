@@ -1,32 +1,39 @@
 // `?recordaudio=1`: the session's music as a 16-bit stereo .wav, captured digitally from the engine's own mix
 // (no mic, no system loopback) so a demo video can use the real, live-driven audio at full quality.
+// MediaRecorder encodes off the main thread, so a screen recorder running alongside can't starve the capture
+// (a ScriptProcessor version came out empty while recording the screen). The result is decoded to WAV at the end,
+// since video editors don't open webm audio.
 
-/** Starts capturing `stream` now; `stop()` resolves with the .wav. */
+const MIME = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4']
+  .find((t) => typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported(t));
+
+/** Starts capturing `stream` now; `stop()` resolves with the .wav (or rejects with the reason it couldn't). */
 export function recordWav(stream: MediaStream) {
-  const ctx = new AudioContext();
-  void ctx.resume(); // auto-start into Playing has no fresh click; Safari would otherwise leave it suspended
-  const source = ctx.createMediaStreamSource(stream);
-  // shortcut: ScriptProcessor is deprecated but works everywhere with no worklet file; move to AudioWorklet if it's removed.
-  const tap = ctx.createScriptProcessor(16384, 2, 2); // big buffer: survives main-thread hiccups
-  const chunks: Int16Array[] = [];
-  tap.onaudioprocess = (e) => {
-    const left = e.inputBuffer.getChannelData(0);
-    const right = e.inputBuffer.getChannelData(1);
-    const pcm = new Int16Array(left.length * 2);
-    for (let i = 0; i < left.length; i++) { pcm[2 * i] = toInt16(left[i]); pcm[2 * i + 1] = toInt16(right[i]); }
-    chunks.push(pcm);
-  };
-  source.connect(tap);
-  tap.connect(ctx.destination); // a ScriptProcessor only runs when connected; its output is silence
+  const recorder = new MediaRecorder(new MediaStream(stream.getAudioTracks()), { mimeType: MIME, audioBitsPerSecond: 256_000 });
+  const chunks: Blob[] = [];
+  recorder.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
+  recorder.start(1000);
 
   return {
     async stop() {
-      source.disconnect();
-      tap.disconnect();
-      await ctx.close();
-      return encodeWav(chunks, ctx.sampleRate);
+      if (recorder.state !== 'inactive') {
+        const stopped = new Promise((r) => { recorder.onstop = r; });
+        recorder.stop();
+        await stopped;
+      }
+      if (!chunks.length) throw new Error('no audio was captured');
+      const audio = await new OfflineAudioContext(2, 1, 48000).decodeAudioData(await new Blob(chunks).arrayBuffer());
+      return toWav(audio);
     },
   };
+}
+
+function toWav(audio: AudioBuffer): Blob {
+  const left = audio.getChannelData(0);
+  const right = audio.numberOfChannels > 1 ? audio.getChannelData(1) : left;
+  const pcm = new Int16Array(left.length * 2);
+  for (let i = 0; i < left.length; i++) { pcm[2 * i] = toInt16(left[i]); pcm[2 * i + 1] = toInt16(right[i]); }
+  return encodeWav([pcm], audio.sampleRate);
 }
 
 const toInt16 = (s: number) => Math.round(Math.max(-1, Math.min(1, s)) * 0x7fff);
