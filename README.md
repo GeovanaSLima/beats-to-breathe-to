@@ -71,7 +71,7 @@ npm start
 
 This runs the bridge and the web app together in one terminal, with their output labelled `[bridge]` and `[web]`. Open http://localhost:5173, tick the consent box and press **Turn on camera & tune in**. Sit back so your face, shoulders and chest are in view, in good, even light, and stay still. Pulse usually locks in about 10 s; breathing often takes 30–60 s.
 
-Press **Ctrl+C** to stop: it stops both parts and the camera turns off. If one part exits, the other is stopped too.
+Press **Ctrl+C** to stop: it stops both parts and the bridge releases the camera (the browser's own preview turns off when you press Turn off or close the tab). If one part exits, the other is stopped too.
 
 The first time, macOS asks for camera access **for your terminal app** (Terminal, iTerm, VS Code…), because the bridge is a Node process started from it. Allow it in System Settings → Privacy & Security → Camera if you missed the prompt. The bridge's debug page at http://localhost:8787 shows the raw numbers.
 
@@ -91,7 +91,7 @@ cd web && npm install && npm run dev
 ### Run it with the simulator (no camera, no key)
 
 ```bash
-npm run setup
+npm --prefix web install
 ```
 
 ```bash

@@ -4,18 +4,17 @@
 import { spawn } from 'node:child_process';
 import { createInterface } from 'node:readline';
 
-const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm';
 const parts = { bridge: ['--prefix', 'bridge', 'start'], web: ['--prefix', 'web', 'run', 'dev'] };
 
 let stopping = false;
 const procs = Object.entries(parts).map(([name, args]) => {
-  const child = spawn(npm, args, { stdio: ['ignore', 'pipe', 'pipe'] });
+  const child = spawn('npm', args, { stdio: ['ignore', 'pipe', 'pipe'] });
   for (const [stream, out] of [[child.stdout, console.log], [child.stderr, console.error]]) {
     createInterface({ input: stream }).on('line', (line) => out(`[${name}] ${line}`));
   }
   child.on('exit', (code, signal) => {
     if (!stopping) console.log(`[${name}] stopped (${signal ?? `exit ${code}`}), stopping the rest`);
-    stopAll(code ?? 0);
+    stopAll(code ?? 1); // killed by a signal (e.g. a native crash) is a failure
   });
   return child;
 });
@@ -24,7 +23,8 @@ function stopAll(code) {
   if (stopping) return;
   stopping = true;
   process.exitCode = code;
-  for (const child of procs) if (child.exitCode === null && child.signalCode === null) child.kill('SIGINT');
+  for (const child of procs) child.kill('SIGINT'); // no-op for one that already exited
 }
 
 for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, () => stopAll(0));
+process.stdout.on('error', () => stopAll(1)); // e.g. piped into `head`: don't orphan the children
