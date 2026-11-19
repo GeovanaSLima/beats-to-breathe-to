@@ -11,7 +11,7 @@ import { collect, toMessage } from './metrics.js';
 
 const PORT = 8787;
 // The SDK sends breathing every 3–8 s and flags a sample stable only every 10–25 s (seen live), so one stable
-// sample keeps breathing "read" this long. Without it the music would keep dropping between stable samples.
+// sample keeps breathing "read" this long. Without it tape progress and the breathing tile would keep dropping between stable samples.
 const BREATHING_HOLD_MS = 30000;
 const apiKey = process.env.PRESAGE_API_KEY;
 if (!apiKey) {
@@ -90,7 +90,7 @@ async function start() {
     if (breathing?.stable) breathingStableAt = Date.now();
     // Only stable breathing values reach the app; unstable ones (often wild at 30–40% confidence) would read as noise.
     last = toMessage(breathing?.stable ? samples : { ...samples, breathing: undefined }, last, faceDetected);
-    // The app starts and keeps the music only while breathing is really being read.
+    // The app needs breathing read to start; mid-song it only gates breathing effects and tape progress.
     chestOutTicks = lastCode === ValidationCode.kChestNotVisible ? chestOutTicks + 1 : 0; // 2 in a row: ignore one-frame flickers
     last.breathingStable = Date.now() - breathingStableAt < BREATHING_HOLD_MS && chestOutTicks < 2;
     samples = {};
