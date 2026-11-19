@@ -119,7 +119,9 @@ function enterScreen(screen: Screen) {
   if (wantsPreview()) void startPreview(); else stopPreview();
   if (screen !== 'playing') recording?.stop(); // finish or turn off ends a recording early
   if (screen === 'tape') showClip(); else discardClip(); // the clip lives only until you leave the tape screen
-  if (recordAudio && screen === 'playing' && !wav) wav = recordWav(session.audioStream());
+  if (recordAudio && screen === 'playing' && !wav) {
+    try { wav = recordWav(session.audioStream()); } catch (e) { console.error('session audio not recorded', e); }
+  }
   if (wav && screen !== 'playing') { void saveWav(wav, screen === 'tape'); wav = null; } // saved on Finish, dropped on Turn off
   if (screen === 'welcome') { consent.checked = false; tuneIn.disabled = true; }
   if (screen === 'tape') {
@@ -178,8 +180,9 @@ function startRecording() {
 }
 
 async function saveWav(rec: ReturnType<typeof recordWav>, keep: boolean) {
+  if (keep) await new Promise((r) => setTimeout(r, 1700)); // let the music's 1.5 s fade-out finish in the file
   const blob = await rec.stop();
-  if (!keep) return;
+  if (!keep || blob.size <= 44) return; // header only: nothing was captured
   const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: 'beats-to-breathe-to-session.wav' });
   a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 10_000); // give the download time to start

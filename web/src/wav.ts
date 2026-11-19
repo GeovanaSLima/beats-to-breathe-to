@@ -4,9 +4,10 @@
 /** Starts capturing `stream` now; `stop()` resolves with the .wav. */
 export function recordWav(stream: MediaStream) {
   const ctx = new AudioContext();
+  void ctx.resume(); // auto-start into Playing has no fresh click; Safari would otherwise leave it suspended
   const source = ctx.createMediaStreamSource(stream);
   // shortcut: ScriptProcessor is deprecated but works everywhere with no worklet file; move to AudioWorklet if it's removed.
-  const tap = ctx.createScriptProcessor(4096, 2, 2);
+  const tap = ctx.createScriptProcessor(16384, 2, 2); // big buffer: survives main-thread hiccups
   const chunks: Int16Array[] = [];
   tap.onaudioprocess = (e) => {
     const left = e.inputBuffer.getChannelData(0);
