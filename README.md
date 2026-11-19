@@ -31,13 +31,31 @@ The music only starts once your face, pulse and breathing are all being read, an
 
 <sub>Drawn with Excalidraw: open [`docs/diagram/architecture.excalidraw`](docs/diagram/architecture.excalidraw) at [excalidraw.com](https://excalidraw.com) to edit it.</sub>
 
-There is no browser version of the SDK, so a small local **bridge** runs the [Node SDK](https://www.npmjs.com/package/@smartspectra/node-sdk), owns the camera and sends numbers to the web app. The web app never sends the camera anywhere; it only opens it for the "live camera" polaroid while tuning in and playing. If the SDK asks you to adjust ("Place more of the chest in view."), that tip shows under the polaroid.
+There is no browser version of the SDK, so the app has two parts that talk over `localhost`:
 
-- `bridge/index.js`: SDK session, WebSocket server, start/stop.
-- `web/src/signals/`: bridge client, simulator, smoothing and steadiness.
-- `web/src/audio/`: the Tone.js engine and the signal → sound mapping.
-- `web/src/session.ts`: the screen flow (welcome → tuning → playing → tape).
-- `web/src/record.ts`: the 15 s clip.
+1. **The bridge** (Node.js) runs the [`@smartspectra/node-sdk`](https://www.npmjs.com/package/@smartspectra/node-sdk) on your computer. It owns the webcam, turns the SDK's metrics (pulse, breathing rate, HRV, each with a confidence and a `stable` flag) and its framing checks (face found, chest in view, motion) into one small JSON message per second, and serves it on `ws://localhost:8787`. It only accepts local pages, and it turns the camera on only when the app asks.
+2. **The web app** (Vite + TypeScript) listens to those messages, smooths them, runs the screen flow and plays the music with Tone.js. Everything you hear is synthesized live, with no samples. Its only camera use is the "live camera" polaroid, a self-view that never leaves the tab. If the SDK asks you to adjust ("Place more of the chest in view."), the tip shows under the polaroid.
+
+```
+beats-to-breathe-to/
+├─ package.json          # npm run setup · npm start · npm run sim · npm test
+├─ scripts/start.js      # runs bridge + web in one terminal; Ctrl+C stops both
+├─ bridge/
+│  ├─ index.js           # SDK session, WebSocket server, start/stop, camera release
+│  ├─ metrics.js         # SDK packets → the JSON message (+ tests)
+│  └─ debug.html         # http://localhost:8787: raw numbers for debugging
+├─ web/
+│  ├─ index.html         # the four screens and the room scene
+│  └─ src/
+│     ├─ signals/        # bridge client, simulator, smoothing, steadiness
+│     ├─ audio/          # Tone.js engine and the signal → sound mapping
+│     ├─ session.ts      # screen flow: welcome → tuning → playing → tape
+│     ├─ main.ts         # rendering, camera preview, clip UI
+│     ├─ record.ts       # the 15 s clip (canvas + music, in memory)
+│     ├─ scene.ts        # vinyl spin, tuner needle, confetti
+│     └─ theme.ts        # day/night by your clock
+└─ docs/                 # screenshots and diagrams
+```
 
 ## What you need
 
@@ -49,21 +67,31 @@ There is no browser version of the SDK, so a small local **bridge** runs the [No
 
 ## Setup
 
+**1. Get the code**
+
 ```bash
-git clone git@github.com:GeovanaSLima/beats-to-breathe-to.git
-cd beats-to-breathe-to
-cp .env.example .env    # then paste your key after PRESAGE_API_KEY=
+git clone https://github.com/GeovanaSLima/beats-to-breathe-to.git
 ```
 
-The key lives only in `.env`, which git ignores. The SDK's licensed runtime files come from npm into `node_modules/` and are never committed.
+```bash
+cd beats-to-breathe-to
+```
 
-### Run it live (one command)
+**2. Add your Presage API key**
 
-Install everything once, then start both parts from the project folder:
+```bash
+cp .env.example .env
+```
+
+Open `.env` and paste your key after `PRESAGE_API_KEY=`. The key lives only in `.env`, which git ignores. The SDK's licensed runtime files come from npm into `node_modules/` and are never committed.
+
+**3. Install** (once)
 
 ```bash
 npm run setup
 ```
+
+### Run it live (one command)
 
 ```bash
 npm start
@@ -105,9 +133,16 @@ Handy for demos: `?time=day` or `?time=night` overrides the clock-based theme, a
 ### Tests
 
 ```bash
-cd bridge && npm test
-cd web && npm test
+npm test
 ```
+
+### Troubleshooting
+
+- **"PRESAGE_API_KEY is missing"**: create `.env` from `.env.example` and add your key (step 2).
+- **"Bridge not running" in the app**: the bridge isn't up. Use `npm start`, or start it on its own with `npm --prefix bridge start`.
+- **No camera / the SDK can't open it**: allow camera access for your terminal app in System Settings → Privacy & Security → Camera, then restart the terminal. Quit other apps using the camera.
+- **Breathing stays on "Reading…"**: sit back so your chest and shoulders are in view, keep still and wait; the first breathing reading often takes 30–60 s.
+- **Port 5173 already in use**: Vite picks the next free port and prints it; open that address instead.
 
 ## Audio and asset licensing
 

@@ -25,7 +25,7 @@ function createBridgeClient(): SignalSource {
     ws.onclose = () => {
       ws = null;
       if (!wanted) return;
-      cb({ type: 'status', state: 'error', message: 'Bridge not running. Start it with `npm start` in bridge/.' });
+      cb({ type: 'status', state: 'error', message: 'Bridge not running. Start it with `npm start` in the project folder.' });
       setTimeout(() => { if (wanted && !ws) connect(); }, 2000);
     };
   };
