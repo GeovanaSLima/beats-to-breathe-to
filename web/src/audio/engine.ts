@@ -97,7 +97,7 @@ export function createEngine() {
   return {
     get bpm() { return transport.bpm.value; },
 
-    /** The final mix as a MediaStream, for the clip recorder. */
+    /** The final mix as a MediaStream, for the clip and session-audio recorders. */
     audioStream() {
       if (!tap) { tap = Tone.getContext().createMediaStreamDestination(); limiter.connect(tap); }
       return tap.stream;

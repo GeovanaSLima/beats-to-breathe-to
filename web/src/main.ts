@@ -183,14 +183,14 @@ function startRecording() {
 async function saveWav(rec: ReturnType<typeof recordWav>, keep: boolean) {
   if (keep) await new Promise((r) => setTimeout(r, 1700)); // let the music's 1.5 s fade-out finish in the file
   try {
-    const blob = await rec.stop();
-    if (!keep) return;
+    const blob = await rec.stop(keep);
+    if (!blob) return;
     const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: 'beats-to-breathe-to-session.wav' });
     document.body.append(a); // some browsers ignore clicks on detached links
     a.click();
     a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 10_000); // give the download time to start
-    noteWav(`Session audio saved as beats-to-breathe-to-session.wav (${Math.round(blob.size / 1e6)} MB).`);
+    noteWav(`Session audio saved as beats-to-breathe-to-session.wav (${(blob.size / 1e6).toFixed(1)} MB).`);
   } catch (e) {
     console.error('session audio not saved', e);
     if (keep) noteWav(`Session audio couldn't be saved: ${e instanceof Error ? e.message : e}`);

@@ -1,5 +1,5 @@
 // `?recordaudio=1`: the session's music as a 16-bit stereo .wav, captured digitally from the engine's own mix
-// (no mic, no system loopback) so a demo video can use the real, live-driven audio at full quality.
+// (no mic, no system loopback; 256 kbps Opus, transparent for a video) so a demo video can use the real, live-driven audio.
 // MediaRecorder encodes off the main thread, so a screen recorder running alongside can't starve the capture
 // (a ScriptProcessor version came out empty while recording the screen). The result is decoded to WAV at the end,
 // since video editors don't open webm audio.
@@ -7,7 +7,7 @@
 const MIME = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4']
   .find((t) => typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported(t));
 
-/** Starts capturing `stream` now; `stop()` resolves with the .wav (or rejects with the reason it couldn't). */
+/** Starts capturing `stream` now; `stop(keep)` resolves with the .wav, or null when not kept (rejects with the reason it couldn't). */
 export function recordWav(stream: MediaStream) {
   const recorder = new MediaRecorder(new MediaStream(stream.getAudioTracks()), { mimeType: MIME, audioBitsPerSecond: 256_000 });
   const chunks: Blob[] = [];
@@ -15,12 +15,13 @@ export function recordWav(stream: MediaStream) {
   recorder.start(1000);
 
   return {
-    async stop() {
+    async stop(keep: boolean): Promise<Blob | null> {
       if (recorder.state !== 'inactive') {
         const stopped = new Promise((r) => { recorder.onstop = r; });
         recorder.stop();
         await stopped;
       }
+      if (!keep) return null; // Turn off: don't decode what we'd throw away
       if (!chunks.length) throw new Error('no audio was captured');
       const audio = await new OfflineAudioContext(2, 1, 48000).decodeAudioData(await new Blob(chunks).arrayBuffer());
       return toWav(audio);
