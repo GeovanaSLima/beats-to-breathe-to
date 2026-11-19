@@ -18,7 +18,7 @@ A lo-fi radio that plays at your heart rate. Your webcam reads your pulse and br
 |---|---|
 | **Pulse** (bpm) | The tempo. Smoothed (EMA), kept between 60 and 110 bpm, ignores changes under 1 bpm and glides to the new tempo over 3 s. Shown as the station frequency, e.g. "72.0 FM". |
 | **Breathing rate** (/min) | A low-pass filter and the reverb. Slow breathing (10/min or less) opens the sound up (8 kHz, more reverb). Fast breathing (18/min or more) muffles it (1.2 kHz, drier). Changes over 3 s. |
-| **Breathing steadiness** | Unlocks tapes. Staying within ±2/min of your recent median for 20 s unlocks the next layer. Unsteady moments slow the counter down instead of resetting it. |
+| **Breathing steadiness** | Unlocks tapes. Staying within ±2/min of your recent median for 20 s unlocks the next layer. Unsteady moments make the counter slip back slowly (half a second per unsteady second) instead of resetting it. |
 | **HRV** (RMSSD) | A little swing in the groove (more variability, more swing, up to 0.15). |
 
 The music only starts once your face, pulse and breathing are all being read, and a drum loop with vinyl crackle plays the whole time. If the camera loses your face or your breathing for 5 s, the music turns down and the radio dims until you're back (without a face, the tempo also holds).
@@ -86,7 +86,7 @@ cd web && npm install && npm run sim
 
 This opens http://localhost:5173/?sim=1 (or set `VITE_SIGNAL_SOURCE=sim`). Fake signals wander around a calm pulse and breathing rate, and a red **SIMULATED** badge stays on screen. Clips made in this mode carry a SIMULATED label too.
 
-Handy for demos: `?time=day` or `?time=night` overrides the clock-based theme, and `?hidecam=1` keeps your camera image off screen (the polaroids show a placeholder) while the bridge still reads your signals live.
+Handy for demos: `?time=day` or `?time=night` overrides the clock-based theme, and `?hidecam=1` keeps your camera image off screen (the tuning polaroid shows a placeholder, the playing one stays hidden) while the bridge still reads your signals live.
 
 ### Tests
 
